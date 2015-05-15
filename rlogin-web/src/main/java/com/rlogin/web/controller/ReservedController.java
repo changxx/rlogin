@@ -38,12 +38,18 @@ public class ReservedController {
     @Autowired
     private FetchDonateService fetchDonateService;
 
+    /**
+     * 登录界面
+     */
     @RequestMapping("/login")
     public ModelAndView login(HttpServletRequest request, HttpServletResponse response) {
         ModelAndView mv = new ModelAndView("reserved/login");
         return mv;
     }
 
+    /**
+     * 验证码
+     */
     @RequestMapping("/vericode")
     public void vericode(HttpServletRequest request, HttpServletResponse response)
             throws ClientProtocolException, IOException {
@@ -67,6 +73,9 @@ public class ReservedController {
 
     }
 
+    /**
+     * 登录操作
+     */
     @RequestMapping("/loginin")
     @ResponseBody
     public Result loginin(@RequestParam String account, @RequestParam String pass,
@@ -115,6 +124,9 @@ public class ReservedController {
         return result;
     }
 
+    /**
+     * 注销
+     */
     @RequestMapping("/loginout")
     @ResponseBody
     public void loginout(HttpServletRequest request, HttpServletResponse response)
@@ -132,6 +144,16 @@ public class ReservedController {
         ResponseHandler<String> responseHandler = new NJReserveResponseHandler(response);
 
         String responseHtml = httpClient.execute(post, responseHandler);
+    }
+
+    /**
+     * 注销
+     */
+    @RequestMapping("/index")
+    public ModelAndView index() {
+        ModelAndView mv = new ModelAndView();
+        
+        return mv;
     }
 
 }

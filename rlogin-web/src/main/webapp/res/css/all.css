@@ -1,0 +1,19 @@
+.reserved{
+    font-size: 14px;
+}
+
+.table-view.reserved{
+    border-top: 0px;
+}
+
+.reserved .table-view-cell {
+  padding: 11px 20px;
+}
+
+.reserved li.table-view-cell .left{
+	
+}
+
+.reserved li.table-view-cell .right{
+	float: right;
+}

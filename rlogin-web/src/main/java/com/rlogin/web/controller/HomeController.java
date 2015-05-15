@@ -22,7 +22,6 @@ public class HomeController {
     @RequestMapping("")
     public ModelAndView home() {
         ModelAndView mv = new ModelAndView("home");
-        System.out.println(testDao.find(1));
         return mv;
     }
 }

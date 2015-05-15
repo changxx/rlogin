@@ -1,0 +1,32 @@
+<style>
+</style>
+<ul class="table-view reserved"> 
+   <li class="table-view-cell">
+        <span class="left">刘德华</span>
+        <span class="right">41052719870606543X</span>
+   </li> 
+   <li class="table-view-cell">
+        <span class="left">当前余额</span>
+        <span class="right">41052719870606543X</span>
+   </li> 
+   <li class="table-view-cell">
+        <span class="left">个人缴存比例</span>
+        <span class="right">41052719870606543X</span>
+   </li> 
+   <li class="table-view-cell">
+        <span class="left">月缴</span>
+        <span class="right">41052719870606543X</span>
+   </li> 
+   <li class="table-view-cell">
+        <span class="left">最近缴纳时间</span>
+        <span class="right">41052719870606543X</span>
+   </li> 
+   <li class="table-view-cell">
+        <span class="left">账户状态</span>
+        <span class="right">41052719870606543X</span>
+   </li> 
+</ul> 
+<nav class="bar bar-tab"> 
+   <a class="tab-item active" href="#"> <span class="tab-label">最近一年明细</span> </a> 
+   <a class="tab-item" href="#"> <span class="tab-label">贷款个数（n）</span> </a> 
+</nav> 
