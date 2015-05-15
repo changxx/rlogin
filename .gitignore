@@ -1,0 +1,15 @@
+# intellij idea file
+*.iml
+
+# eclipse file
+*.classpath
+*.project
+.settings/
+.metadata/
+
+# maven folder
+target/
+
+# emacs back files
+*~
+^\#*\#$
