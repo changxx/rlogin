@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+    <head>
+		#parse("common/layout_head.vm")
+    </head>
+    <body>
+        #parse("common/layout_top.vm")
+        #parse("common/layout_nav.vm")
+        <div class="content">
+    	   	   $screen_content
+        </div>
+    </body>
+</html>
+
+ 

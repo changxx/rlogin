@@ -1,0 +1,11 @@
+.input-row label {
+	width: 40%;
+}
+
+.input-row input {
+	width: 60%;
+}
+
+form {
+	padding: 5px;
+}

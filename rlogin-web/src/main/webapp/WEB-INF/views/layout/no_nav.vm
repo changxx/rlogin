@@ -1,0 +1,36 @@
+#**
+this is the default vm for render, if a vm can not set layout="your vm layout", use this layout
+
+component has :
+head   - header of html include meta, charset, the necessary css and js, etc...
+top - the top, include userinfo, search, etc...
+nav - the navigation bar in top
+footer - the copyright
+-- html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd
+@version 0.1
+@author wanghaiinfo
+*#
+
+<!doctype html>
+<html>
+<head>
+#parse("common/layout_head.vm")
+</head>
+<body>
+<div class="website">
+ #parse("common/layout_top.vm")
+ <div class='nav-content-div'>
+  <div class="content">
+   <div class="container-fluid">
+    <div id="vmContainer" class="row-fluid">
+$screen_content
+    </div>
+   </div>
+  </div>
+ </div>
+</div>
+#parse("common/layout_footer.vm")
+</body>
+</html>
+
+ 

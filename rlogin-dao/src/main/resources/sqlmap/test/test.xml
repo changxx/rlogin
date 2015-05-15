@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN "
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.rlogin.dao.impl.TestDaoImpl">
+
+	<sql id="table_name">test</sql>
+
+	<sql id="field_list">
+		id,
+		name
+	</sql>
+
+	<resultMap id="TestMap" type="com.rlogin.domain.Test">
+		<result property="id" column="id" />
+		<result property="name" column="name" />
+	</resultMap>
+
+	<sql id="condition">
+		<where>
+			<if test="id != null">
+				and id=#{id}
+			</if>
+			<if test="name != null">
+				and name=#{name}
+			</if>
+		</where>
+	</sql>
+
+	<select id="count" resultType="int">
+		SELECT count(1) as value FROM
+		<include refid="table_name" />
+		<include refid="condition" />
+	</select>
+
+	<select id="find" resultMap="TestMap">
+		SELECT
+		<include refid="field_list" />
+		FROM
+		<include refid="table_name" />
+		WHERE id = #{id}
+	</select>
+
+	<select id="list" resultMap="TestMap">
+		SELECT
+		<include refid="field_list" />
+		FROM
+		<include refid="table_name" />
+		<include refid="condition" />
+		<if test="order != null">
+			order by ${order}
+		</if>
+		<if test="paging == true">
+            LIMIT #{start},#{pageSize}
+        </if>
+	</select>
+
+	<insert id="insert">
+		<![CDATA[
+			INSERT INTO 
+			test(name) 
+			VALUES(#{name})
+		]]>
+		<selectKey resultType="int" keyProperty="id">
+			SELECT LAST_INSERT_ID() AS ID
+		</selectKey>
+	</insert>
+
+	<update id="update">
+		UPDATE
+		<include refid="table_name" />
+		<set>
+			<if test="name != null">
+				name=#{name}
+			</if>
+		</set>
+		WHERE id=#{id}
+	</update>
+
+	<update id="delete">
+		DELETE FROM
+		<include refid="table_name" />
+		WHERE id=#{id}
+	</update>
+
+</mapper>

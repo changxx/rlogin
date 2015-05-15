@@ -1,0 +1,2 @@
+##use this like : #set($layout = "layout/null.vm" )
+$screen_content

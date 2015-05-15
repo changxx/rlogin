@@ -1,0 +1,15 @@
+##set($layout = "layout/no_nav.vm")
+#set($title = "权限不足")
+<div id="content" style="margin-top:20px;height:60px;text-align:left;
+   ## border-bottom:1px solid #f1f1f1
+    ">
+       <div style="float:left">
+           <p class="text" style="margin:0;font-size:13px;color:#999999;line-height:22px">
+				<div style="margin-left:20px;padding: 5px;font-size:13px;border-radius: 3px;
+				    background-color: #fffd93;border: 1px solid #dbcf44;color:#111;
+				    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;">
+                    您的访问被拒绝！！您没有该项请求的权限。
+                </div>
+		   </p>	
+       </div>
+</div>				

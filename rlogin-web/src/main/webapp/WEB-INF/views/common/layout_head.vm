@@ -1,0 +1,20 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta content="telephone=no" name="format-detection">
+<title>$!{title}</title>
+
+<script src="$!{context}/res/tools/jquery.js"></script>
+<script src="$!{context}/res/tools/ratchet/ratchet.min.js"></script>
+
+<link rel="stylesheet" href="$!{context}/res/tools/ratchet/ratchet.min.css">
+<link rel="stylesheet" href="$!{context}/res/css/frame.css">
+	
+<script type="text/javascript">
+    var context = "$!{context}";
+    var version = "$!{version}";
+</script>
+
+<div data-role="header">
+    <h1>此处是页面标题</h1>
+</div>

@@ -1,0 +1,10 @@
+##set($layout = "layout/no_nav.vm")
+#set($title = "404")
+<div id="content" style="margin:141px auto 0px;width:885px;text-align:left;">
+       <div style="float:left">
+           <p class="title" style="margin:0;font-size:20px;color:#666666;font-family:微软雅黑">404,您请求的页面已经损坏了！！</p>
+           <br/>
+           <p class="text" style="margin:0;width:460px;word-break:break-all;word-wrap:break-word;font-size:12px;color:#999999;line-height:22px">找不到您所请求的页面 <a id="href" href="#"></a> ，
+			请<a href="$!home" style="color:#066CBA;text-decoration:none;margin-left:5px">回到主页</a></p>	
+       </div>
+</div>				

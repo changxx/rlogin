@@ -1,0 +1,60 @@
+#macro (ifnull $resource $replace)
+	#if($!resource && $!resource != '')
+		$!resource
+	#else
+		$!replace
+	#end
+#end
+
+##普通分页宏
+#macro (paging $page $form)
+<div class="row">
+	<div class="col-lg-6">
+		<div class="dataTables_info">当前第$!page.index页，共$!{users.getTotalPage()}页，$!{users.getTotalItem()}条记录</div></div>
+		<div class="col-lg-6">
+			<div class="dataTables_paginate paging_bootstrap pagination">
+				<div class="c-pages-left fl mr5">
+					<ul>
+        			#if($page)
+        				#if($page.index > $page.totalPage)
+        					#set($!page.index = $page.totalPage)
+        				#end
+                        #set($pagePos = 1) ##当前页的尾巴长度
+                        #if($page.previousPageAvailable) ##如果能向上翻页
+                            <li class="prev"><a onclick="com.redirectPage($!{page.previousPage}, '$!form')" href="javascript:;"> ← 上一页</a></li>
+                            <li class=""><a onclick="com.redirectPage(1, '$!form')" href="javascript:;"> 1 </a></li>
+                        #else
+							 <li class="prev disabled"><a onclick="com.redirectPage($!{page.previousPage}, '$!form')" href="javascript:;"> ← 上一页</a></li>
+						#end
+						#if($!page.index>$pagePos+2) 
+            				<li class=""><a href="javascript:;">...</a></li>
+                        #end ##显示前面的省略
+                        #foreach($i in [$pagePos..1]) ##增加前面的尾巴
+                            #if($!page.index - $i > 1)
+                                #set($pageIndex= $!page.index - $i)
+								<li class=""><a onclick="com.redirectPage($!{pageIndex}, '$!form')" href="javascript:;">$!pageIndex</a></li>
+                            #end
+                        #end
+						<li class="active"><a href="#">$!page.index</a></li>##显示当前页号
+                        #foreach($i in [1..$pagePos]) ##增加后面的尾巴
+                            #if($!page.totalPage - $!page.index - $i > 0)
+                                #set($pageIndex= $!page.index + $!i)
+								<li class=""><a onclick="com.redirectPage($!{pageIndex}, '$!form')" href="javascript:;">$!pageIndex</a></li>
+                            #end
+						#end
+						#if($!page.totalPage - $!page.index > $pagePos+1) 
+            				<li class=""><a href="javascript:;">...</a></li>
+                        #end ##显示后面的省略号
+                        #if($page.nextPageAvailable) ##显示后面的页
+							<li class=""><a onclick="com.redirectPage($!{page.totalPage}, '$!form')" href="javascript:;">$!page.totalPage</a></li>
+							<li class="prev"><a onclick="com.redirectPage($!{page.nextPage}, '$!form')" href="javascript:;">下一页  → </a></li>
+						#else
+							<li class="prev disabled"><a onclick="com.redirectPage($!{page.nextPage}, '$!form')" href="javascript:;">下一页  → </a></li>
+						#end
+					#end
+                    </ul>
+				</div>
+            </div>
+	</div>
+</div>
+#end
