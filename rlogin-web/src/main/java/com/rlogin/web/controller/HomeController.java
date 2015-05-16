@@ -5,7 +5,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.ModelAndView;
 
-import com.rlogin.dao.TestDao;
+import com.rlogin.dao.mapper.gjj.GjjUserMapper;
+import com.rlogin.domain.gjj.GjjUser;
+import com.rlogin.domain.gjj.GjjUserExample;
 
 /**
  * @author changxiangxiang
@@ -16,12 +18,23 @@ import com.rlogin.dao.TestDao;
 @RequestMapping("")
 public class HomeController {
 
-    @Autowired
-    private TestDao testDao;
+	@Autowired
+	private GjjUserMapper gjjUserMapper;
 
-    @RequestMapping("")
-    public ModelAndView home() {
-        ModelAndView mv = new ModelAndView("home");
-        return mv;
-    }
+	@RequestMapping("")
+	public ModelAndView home() {
+		ModelAndView mv = new ModelAndView("home");
+
+		GjjUser gjjUser = new GjjUser();
+		gjjUser.setAccId("s");
+		gjjUser.setAccPwd("ss");
+		gjjUser.setName("ss");
+		//int i = gjjUserMapper.insert(gjjUser);
+		
+		GjjUserExample gjjUserExample = new GjjUserExample();
+		gjjUserExample.createCriteria().andNameEqualTo("ss");
+		
+		System.out.println(gjjUserMapper.selectByExample(gjjUserExample));
+		return mv;
+	}
 }

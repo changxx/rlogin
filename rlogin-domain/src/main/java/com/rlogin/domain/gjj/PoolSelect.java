@@ -1,4 +1,4 @@
-package com.rlogin.domain.njgjj;
+package com.rlogin.domain.gjj;
 
 /**
  * 数据总线

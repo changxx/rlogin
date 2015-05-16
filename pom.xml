@@ -38,7 +38,7 @@
 
 		<!-- test relations versiosns -->
 		<junit_version>4.10</junit_version>
-		
+
 		<httpclient_version>4.2.1</httpclient_version>
 
 		<!-- commons versions -->
@@ -113,6 +113,12 @@
 				<groupId>org.mybatis</groupId>
 				<artifactId>mybatis</artifactId>
 				<version>${mybatis_version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.mybatis.generator</groupId>
+				<artifactId>mybatis-generator-maven-plugin</artifactId>
+				<version>1.3.2</version>
+				<scope>provided</scope>
 			</dependency>
 			<dependency>
 				<groupId>org.mybatis</groupId>
@@ -428,11 +434,11 @@
 				<artifactId>guava</artifactId>
 				<version>${guava_version}</version>
 			</dependency>
-	        <dependency>
-	            <groupId>org.apache.httpcomponents</groupId>
-	            <artifactId>httpclient</artifactId>
-	            <version>${httpclient_version}</version>
-	        </dependency>
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>${httpclient_version}</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 

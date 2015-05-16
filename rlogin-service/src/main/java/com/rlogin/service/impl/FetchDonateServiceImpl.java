@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import com.rlogin.common.frame.Result;
 import com.rlogin.common.http.HttpClientSupport;
 import com.rlogin.common.http.NJReserveResponseHandler;
-import com.rlogin.domain.njgjj.PoolSelect;
+import com.rlogin.domain.gjj.PoolSelect;
 
 @Service
 public class FetchDonateServiceImpl implements FetchDonateService {

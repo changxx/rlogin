@@ -13,10 +13,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.message.BasicNameValuePair;
 import org.junit.Test;
-import org.springframework.batch.poller.Poller;
-
-import com.rlogin.common.util.JSONUtils;
-import com.rlogin.domain.njgjj.PoolSelect;
 
 /**
  * @author changxiangxiang
