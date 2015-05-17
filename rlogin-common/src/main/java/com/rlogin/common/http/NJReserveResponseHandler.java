@@ -12,37 +12,32 @@ import org.apache.http.impl.client.BasicResponseHandler;
 
 public class NJReserveResponseHandler extends BasicResponseHandler {
 
-    private HttpServletResponse servletResponse;
+	private HttpServletResponse servletResponse;
 
-    public NJReserveResponseHandler() {
-        super();
-    }
+	public NJReserveResponseHandler() {
+		super();
+	}
 
-    public NJReserveResponseHandler(HttpServletResponse servletResponse) {
-        super();
-        this.servletResponse = servletResponse;
-    }
+	public NJReserveResponseHandler(HttpServletResponse servletResponse) {
+		super();
+		this.servletResponse = servletResponse;
+	}
 
-    public static void main(String[] args) throws IOException {
-        File file = new File("D://ss.txt");
-        file.createNewFile();
-    }
+	public static void main(String[] args) throws IOException {
+		File file = new File("D://ss.txt");
+		file.createNewFile();
+	}
 
-    @Override
-    public String handleResponse(HttpResponse response) throws HttpResponseException, IOException {
-        Header[] headers = response.getHeaders("Set-Cookie");
+	@Override
+	public String handleResponse(HttpResponse response) throws HttpResponseException, IOException {
 
-        for (Header header : headers) {
-            System.out.println("服务器返回：" + header.getName() + ": " + header.getValue());
-        }
+		if (servletResponse != null) {
+			Header[] headers = response.getHeaders("Set-Cookie");
+			for (Header header : headers) {
+				servletResponse.addHeader(header.getName(), header.getValue());
+			}
+		}
 
-        if (servletResponse != null) {
-            for (Header header : headers) {
-                System.out.println("服务器返回：" + header.getName() + ": " + header.getValue());
-                servletResponse.addHeader(header.getName(), header.getValue());
-            }
-        }
-
-        return super.handleResponse(response);
-    }
+		return super.handleResponse(response);
+	}
 }

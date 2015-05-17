@@ -1,5 +1,5 @@
 #set($title = "登录")
-<script src="$!{context}/res/js/reserved.js"></script>
+<script src="$!{context}/res/js/gjj.js"></script>
 
 <form method="post" class="input-group">
     <div class="input-row">
@@ -13,9 +13,9 @@
     <div class="input-row">
         <label>验证码：</label>
         <input type="text" name="vericode" id="vericode" placeholder="验证码">
-        <img style="  position: absolute; margin-left: 100px; margin-top: 7px;" src="$!{context}/reserved/vericode"/>
+        <img style="  position: absolute; margin-left: 100px; margin-top: 7px;" src="$!{context}/gjj/vericode"/>
     </div>
     <br/>
-    <a class="btn btn-positive btn-block" onclick="reserved.login();return false;">登录</a>
+    <a class="btn btn-positive btn-block" onclick="gjj.login();return false;">登录</a>
 </form>
 

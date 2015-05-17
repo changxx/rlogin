@@ -6,20 +6,24 @@
 	<context id="context1" targetRuntime="MyBatis3">
 		<jdbcConnection driverClass="com.mysql.jdbc.Driver"
 			connectionURL="jdbc:mysql://127.0.0.1:3306/rlogin?useUnicode=true&amp;characterEncoding=UTF-8"
-			userId="root" password="MySql"/>
+			userId="root" password="MySql" />
 		<javaModelGenerator targetPackage="com.rlogin.domain.gjj"
 			targetProject="src/main/java" />
 		<sqlMapGenerator targetPackage="com.rlogin.dao.mapping.gjj"
 			targetProject="src/main/java" />
 		<javaClientGenerator targetPackage="com.rlogin.dao.mapper.gjj"
 			targetProject="src/main/java" type="XMLMAPPER" />
-		<table schema="rlogin" tableName="gjj_acc_detail" />
+		<table schema="rlogin" tableName="gjj_acc_detail">
+			<generatedKey column="id" sqlStatement="SELECT LAST_INSERT_ID()" />
+		</table>
 		<table schema="rlogin" tableName="gjj_detail" />
 		<table schema="rlogin" tableName="gjj_loan" />
 		<table schema="rlogin" tableName="gjj_loan_status" />
 		<table schema="rlogin" tableName="gjj_repay_detail" />
 		<table schema="rlogin" tableName="gjj_repay_plan" />
 		<table schema="rlogin" tableName="gjj_repay_plan_detail" />
-		<table schema="rlogin" tableName="gjj_user" />
+		<table schema="rlogin" tableName="gjj_user">
+			<generatedKey column="id" sqlStatement="SELECT LAST_INSERT_ID()" />
+		</table>
 	</context>
 </generatorConfiguration>

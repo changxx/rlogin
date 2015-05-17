@@ -6,5 +6,14 @@ import com.rlogin.common.frame.Result;
 
 public interface FetchDonateService {
 
-    public Result fetchService(String certinum, String cookie) throws UnsupportedEncodingException;
+	/**
+	 * 获取用户数据
+	 * 
+	 * @param certinum
+	 * @param pass
+	 * @param cookie2
+	 * @return
+	 * @throws UnsupportedEncodingException
+	 */
+	public Result fetchService(String certinum, String pass, String cookie);
 }
