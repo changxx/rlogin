@@ -1,4 +1,4 @@
-package com.rlogin.domain.gjj;
+package com.rlogin.domain.gjj.result;
 
 import java.util.Map;
 
