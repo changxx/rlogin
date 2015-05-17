@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -29,7 +30,10 @@ import com.rlogin.common.frame.Result;
 import com.rlogin.common.http.HttpClientSupport;
 import com.rlogin.common.http.ImageResponseHandler;
 import com.rlogin.common.http.NJReserveResponseHandler;
-import com.rlogin.service.impl.FetchDonateService;
+import com.rlogin.common.util.DesUtil;
+import com.rlogin.domain.Constant;
+import com.rlogin.domain.GjjAccStatus;
+import com.rlogin.service.GjjService;
 
 /**
  * 公积金
@@ -41,7 +45,7 @@ import com.rlogin.service.impl.FetchDonateService;
 public class GjjController {
 
 	@Autowired
-	private FetchDonateService fetchDonateService;
+	private GjjService gjjService;
 
 	/**
 	 * 登录界面
@@ -103,11 +107,24 @@ public class GjjController {
 		String responseHtml = httpClient.execute(post, responseHandler);
 
 		Document document = Jsoup.parse(responseHtml);
+		// 登陆成功，直接跳转
 		Elements elements = document.select("#title_bar .person");
-		if (elements != null && elements.size() > 0) {
+		// 登陆账户选择
+		Elements elements2 = document.select(".WTLoginSelect");
+		if ((elements != null && elements.size() > 0) || (elements2 != null && elements2.size() > 0)) {
 			// 登录成功
-			Element pElement = elements.get(0);
+			Element pElement = elements.size() > 0 ? elements.get(0) : elements2.get(0);
 			result.setTip(pElement.text());
+
+			// 种cookie
+			Cookie loginCookie;
+			try {
+				loginCookie = new Cookie(Constant.USER_COOKIE_KEY, DesUtil.encode(account));
+				response.addCookie(loginCookie);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
 			return result;
 		}
 		Elements wTLoginError = document.select(".WTLoginError").select(".text");
@@ -117,6 +134,7 @@ public class GjjController {
 			result.setTip(errorElement.text());
 			return result;
 		}
+		result.setCode(Result.ERROR);
 		result.setTip("未知错误");
 
 		return result;
@@ -130,12 +148,12 @@ public class GjjController {
 	public Result fetch(@RequestParam String account, @RequestParam String pass, HttpServletRequest request) {
 		Result result = new Result();
 		String cookie = request.getHeader("Cookie");
-		fetchDonateService.fetchService(account, pass, cookie);
+		gjjService.fetchService(account, pass, cookie);
 		return result;
 	}
 
 	/**
-	 * 注销
+	 * 注销公积金中心
 	 */
 	@RequestMapping("/loginout")
 	@ResponseBody
@@ -154,12 +172,15 @@ public class GjjController {
 	}
 
 	/**
-	 * 注销
+	 * 个人公积金主页
 	 */
 	@RequestMapping("/index")
-	public ModelAndView index() {
+	public ModelAndView index(HttpServletRequest request) {
 		ModelAndView mv = new ModelAndView();
-		
+		String loginId = request.getAttribute(Constant.USER_COOKIE_KEY).toString();
+		mv.addObject("gjjUser", gjjService.getGjjUser(loginId));
+		mv.addObject("gjjDetail", gjjService.getGjjAccDetail(loginId));
+		mv.addObject("gjjAccStatus", GjjAccStatus.values());
 		return mv;
 	}
 

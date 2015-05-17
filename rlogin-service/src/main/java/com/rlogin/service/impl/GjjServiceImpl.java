@@ -14,6 +14,10 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.message.BasicNameValuePair;
+import org.joda.time.DateTime;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -30,9 +34,10 @@ import com.rlogin.domain.gjj.GjjResult;
 import com.rlogin.domain.gjj.GjjUser;
 import com.rlogin.domain.gjj.GjjUserExample;
 import com.rlogin.domain.gjj.PoolSelect;
+import com.rlogin.service.GjjService;
 
 @Service
-public class FetchDonateServiceImpl implements FetchDonateService {
+public class GjjServiceImpl implements GjjService {
 
 	@Autowired
 	private GjjUserMapper gjjUserMapper;
@@ -77,9 +82,12 @@ public class FetchDonateServiceImpl implements FetchDonateService {
 			e.printStackTrace();
 		}
 		GjjResult gjjResult = JSONUtils.jsonToObject(responseBody, GjjResult.class);
-		//  纪录公积金用户
-		Integer num = this.recordUser(certinum, pass, poolSelect, gjjResult);
-		result.setCode(num > 0 ? Result.SUCCESS : Result.ERROR);
+		//  纪录公积金用户, 明细
+		GjjUser gjjUser = this.recordUser(certinum, pass, poolSelect, gjjResult);
+
+		this.recordDetailList(cookie, gjjUser);
+
+		result.setCode(gjjUser != null ? Result.SUCCESS : Result.ERROR);
 		return result;
 	}
 
@@ -142,7 +150,7 @@ public class FetchDonateServiceImpl implements FetchDonateService {
 	 * @param poolSelect
 	 * @return
 	 */
-	private Integer recordUser(String certinum, String pass, PoolSelect poolSelect, GjjResult gjjResult) {
+	private GjjUser recordUser(String certinum, String pass, PoolSelect poolSelect, GjjResult gjjResult) {
 		// 公积金用户表
 		GjjUser gjjUser = new GjjUser();
 		gjjUser.setAccId(certinum);
@@ -202,7 +210,93 @@ public class FetchDonateServiceImpl implements FetchDonateService {
 			gjjAccDetailMapper.insert(accDetail);
 		}
 
-		return 1;
+		return gjjUser;
+	}
+
+	/**
+	 * 纪录公积金详情
+	 */
+	private void recordDetailList(String cookie, GjjUser gjjUser) {
+		HttpClient httpClient = HttpClientSupport.getHttpClient();
+
+		HttpGet post = new HttpGet("http://www.njgjj.com/init.summer?_PROCID=70000002");
+		post.addHeader("Cookie", cookie);
+
+		// 创建响应处理器处理服务器响应内容
+		ResponseHandler<String> responseHandler = new NJReserveResponseHandler();
+		// 执行请求并获取结果
+		String responseBody = null;
+		try {
+			responseBody = httpClient.execute(post, responseHandler);
+		} catch (ClientProtocolException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		// 详情页查询使用
+		String dataPool = this.getDataPool(responseBody);
+
+		try {
+			String detailListStr = this.getDetailList(cookie, dataPool, gjjUser);
+		} catch (ClientProtocolException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	private String getDetailList(String cookie, String dataPool, GjjUser gjjUser) throws ClientProtocolException, IOException {
+		HttpClient httpClient = HttpClientSupport.getHttpClient();
+
+		HttpPost post = new HttpPost("http://njgjj.com/dynamictable?uuid=" + System.currentTimeMillis());
+
+		List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
+		params.add(new BasicNameValuePair(
+				"_DATAPOOL_",
+				"rO0ABXNyABZjb20ueWR5ZC5wb29sLkRhdGFQb29sp4pd0OzirDkCAAZMAAdTWVNEQVRFdAASTGphdmEvbGFuZy9TdHJpbmc7TAAGU1lTREFZcQB+AAFMAAhTWVNNT05USHEAfgABTAAHU1lTVElNRXEAfgABTAAHU1lTV0VFS3EAfgABTAAHU1lTWUVBUnEAfgABeHIAEWphdmEudXRpbC5IYXNoTWFwBQfawcMWYNEDAAJGAApsb2FkRmFjdG9ySQAJdGhyZXNob2xkeHA/QAAAAAAAGHcIAAAAIAAAABV0AAdfQUNDTlVNdAAQMzIwMTAwMDI3Mzg4NDg4MHQAA19SV3QAAXd0AAtfVU5JVEFDQ05VTXB0AAdfUEFHRUlEdAAFc3RlcDF0AANfSVNzcgAOamF2YS5sYW5nLkxvbmc7i+SQzI8j3wIAAUoABXZhbHVleHIAEGphdmEubGFuZy5OdW1iZXKGrJUdC5TgiwIAAHhw///////nJE10AAxfVU5JVEFDQ05BTUV0ACfljY7kuLrmioDmnK/mnInpmZDlhazlj7jljZfkuqznoJTnqbbmiYB0AAZfTE9HSVB0ABEyMDE1MDUxNzE2NDkzNDM1NXQACF9BQ0NOQU1FdAAJ6Lev5a2m5LqudAAJaXNTYW1lUGVydAAFZmFsc2V0AAdfUFJPQ0lEdAAINzAwMDAwMDJ0AAtfU0VORE9QRVJJRHQAEjQxMDUyNzE5ODcwNjA2NTQzWHQAEF9ERVBVVFlJRENBUkROVU10ABI0MTA1MjcxOTg3MDYwNjU0M1h0AAlfU0VORFRJTUV0AAoyMDE1LTA1LTE3dAALX0JSQU5DSEtJTkR0AAEwdAAJX1NFTkREQVRFdAAKMjAxNS0wNS0xOHQAE0NVUlJFTlRfU1lTVEVNX0RBVEVxAH4AInQABV9UWVBFdAAEaW5pdHQAB19JU0NST1BxAH4AIHQACV9QT1JDTkFNRXQAGOS4quS6uuaYjue7huS/oeaBr+afpeivonQAB19VU0JLRVlwdAAIX1dJVEhLRVlxAH4AIHh0AAhAU3lzRGF0ZXQAB0BTeXNEYXl0AAlAU3lzTW9udGh0AAhAU3lzVGltZXQACEBTeXNXZWVrdAAIQFN5c1llYXI="));
+		params.add(new BasicNameValuePair("_APPLY", "0"));
+		params.add(new BasicNameValuePair("_CHANNEL", "1"));
+		params.add(new BasicNameValuePair("_PROCID", "70000002"));
+		params.add(new BasicNameValuePair("accname", gjjUser.getName()));
+		params.add(new BasicNameValuePair("accnum", gjjUser.getAccId()));
+		params.add(new BasicNameValuePair("begdate", "2000-01-01"));
+		params.add(new BasicNameValuePair("dynamicTable_configSqlCheck", "0"));
+		params.add(new BasicNameValuePair("dynamicTable_currentPage", "0"));
+		params.add(new BasicNameValuePair("dynamicTable_id", "datalist2"));
+		params.add(new BasicNameValuePair("dynamicTable_nextPage", "1"));
+		params.add(new BasicNameValuePair("dynamicTable_page", "/ydpx/70000002/700002_01.ydpx"));
+		params.add(new BasicNameValuePair("dynamicTable_pageSize", "1000"));
+		params.add(new BasicNameValuePair("dynamicTable_paging", "true"));
+		params.add(new BasicNameValuePair("enddate", new DateTime().toString("yyyy-MM-dd")));
+		params.add(new BasicNameValuePair("errorFilter", "1=1"));
+
+		post.setEntity(new UrlEncodedFormEntity(params));
+
+		post.addHeader("Cookie", cookie);
+
+		// 创建响应处理器处理服务器响应内容
+		ResponseHandler<String> responseHandler = new NJReserveResponseHandler();
+		// 执行请求并获取结果
+		String responseBody = httpClient.execute(post, responseHandler);
+		System.out.println("----------------------------------------");
+		System.out.println(responseBody);
+		System.out.println("----------------------------------------");
+
+		return responseBody;
+	}
+
+	/**
+	 * 详情页查询使用
+	 * 
+	 * @param html
+	 * @return
+	 */
+	private String getDataPool(String html) {
+		Document document = Jsoup.parse(html);
+		Elements elements = document.getElementsByAttributeValue("name", "_DATAPOOL_");
+		return elements != null && elements.size() > 0 ? elements.get(0).text() : "";
 	}
 
 	private GjjUser getGjjUser(GjjUserExample userExample) {
@@ -230,4 +324,21 @@ public class FetchDonateServiceImpl implements FetchDonateService {
 			return null;
 		}
 	}
+
+	@Override
+	public GjjUser getGjjUser(String certinum) {
+		GjjUserExample example = new GjjUserExample();
+		example.createCriteria().andAccIdEqualTo(certinum);
+		List<GjjUser> gjjUsers = gjjUserMapper.selectByExample(example);
+		return gjjUsers.size() > 0 ? gjjUsers.get(0) : null;
+	}
+
+	@Override
+	public GjjAccDetail getGjjAccDetail(String certinum) {
+		GjjAccDetailExample example = new GjjAccDetailExample();
+		example.createCriteria().andUserAccIdEqualTo(certinum);
+		List<GjjAccDetail> accDetails = gjjAccDetailMapper.selectByExample(example);
+		return accDetails.size() > 0 ? accDetails.get(0) : null;
+	}
+
 }

@@ -2,28 +2,34 @@
 </style>
 <ul class="table-view gjj"> 
    <li class="table-view-cell">
-        <span class="left">刘德华</span>
-        <span class="right">41052719870606543X</span>
+        <span class="left">$!gjjUser.name</span>
+        <span class="right">$!gjjUser.accId</span>
    </li> 
    <li class="table-view-cell">
         <span class="left">当前余额</span>
-        <span class="right">41052719870606543X</span>
+        <span class="right">$!gjjUser.balance</span>
    </li> 
    <li class="table-view-cell">
         <span class="left">个人缴存比例</span>
-        <span class="right">41052719870606543X</span>
+        <span class="right">$!numberTool.percent($!gjjUser.gjjRate)</span>
    </li> 
    <li class="table-view-cell">
         <span class="left">月缴</span>
-        <span class="right">41052719870606543X</span>
+        <span class="right">$!gjjUser.mContribute</span>
    </li> 
    <li class="table-view-cell">
         <span class="left">最近缴纳时间</span>
-        <span class="right">41052719870606543X</span>
+        <span class="right">$!dateTool.format('yyyyMM', $!gjjDetail.lastTime)</span>
    </li> 
    <li class="table-view-cell">
         <span class="left">账户状态</span>
-        <span class="right">41052719870606543X</span>
+        <span class="right">
+        	#foreach($!status in $!gjjAccStatus)
+        		#if($!gjjUser.accStatus == $!status.code)
+        			$!status.name
+        		#end
+        	#end
+        </span>
    </li> 
 </ul> 
 <nav class="bar bar-tab"> 
