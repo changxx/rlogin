@@ -3,20 +3,18 @@
 <div id="content" style="margin-top:20px;height:60px;text-align:left;
     ## border-bottom:1px solid #f1f1f1
     ">
-       <div style="float:left">
+       <div style="">
            <p class="text" style="margin:0;font-size:15px;color:#999999;line-height:22px;">
 			  #if($message)
-				<div style="margin-left:20px;padding: 5px;font-size:13px;border-radius: 3px;
-				    background-color: #fffd93;border: 1px solid #dbcf44;color:#111;
-				    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;">
+				<div style="margin:20px;padding: 10px;font-size:13px;border-radius: 3px;
+                    background-color: #fffd93; text-align: center; color:#1111;">
                   $message
                 </div>
 			  #else
 
-				<div style="margin-left:20px;padding: 5px;font-size:13px;border-radius: 3px;
-				    background-color: #fffd93;border: 1px solid #dbcf44;color:#111;
-				    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;">
-                  内部错误，请稍后重试。 遇到了意外情况，无法完成您的请求。
+				<div style="margin:20px;padding: 10px;font-size:13px;border-radius: 3px;
+				    background-color: #5cb85c; text-align: center; color:#fff;">
+                  遇到了意外情况，无法完成您的请求。
                 </div>
 			  #end
 		   </p>	

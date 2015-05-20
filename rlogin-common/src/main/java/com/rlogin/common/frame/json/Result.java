@@ -1,4 +1,4 @@
-package com.rlogin.common.frame;
+package com.rlogin.common.frame.json;
 
 import com.rlogin.common.util.JSONUtils;
 

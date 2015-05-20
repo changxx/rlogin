@@ -16,6 +16,6 @@
         <img style="  position: absolute; margin-left: 100px; margin-top: 7px;" src="$!{context}/gjj/vericode"/>
     </div>
     <br/>
-    <a class="btn btn-positive btn-block" onclick="gjj.login();return false;">登录</a>
+    <a id="login" class="btn btn-positive btn-block" onclick="gjj.login();return false;">登录</a>
 </form>
 

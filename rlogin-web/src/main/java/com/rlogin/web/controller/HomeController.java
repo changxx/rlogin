@@ -1,5 +1,7 @@
 package com.rlogin.web.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,12 +18,14 @@ import com.rlogin.dao.mapper.gjj.GjjUserMapper;
 @RequestMapping("")
 public class HomeController {
 
-	@Autowired
-	private GjjUserMapper gjjUserMapper;
+    private static final Logger log = LoggerFactory.getLogger(HomeController.class);
 
-	@RequestMapping("")
-	public ModelAndView home() {
-		ModelAndView mv = new ModelAndView("home");
-		return mv;
-	}
+    @Autowired
+    private GjjUserMapper       gjjUserMapper;
+
+    @RequestMapping("")
+    public ModelAndView home() {
+        ModelAndView mv = new ModelAndView("home");
+        return mv;
+    }
 }

@@ -12,9 +12,12 @@ var gjj = {
 				"pass" : pass,
 				"vericode" : vericode
 			},
+			beforeSend : function() {
+				$('#login').html('登录中，请稍候');
+			},
 			success : function(json) {
 				if (json.code == 0) {
-					console.log(json.tip);
+					$('#login').html('登录成功，数据加载中');
 					gjj.fetch(account, pass);
 				} else {
 					alert(json.tip);
@@ -33,6 +36,7 @@ var gjj = {
 			},
 			success : function(json) {
 				if (json.code == 0) {
+					location.href = context + "/gjj/index"
 					console.log(json.tip);
 				} else {
 					alert(json.tip);

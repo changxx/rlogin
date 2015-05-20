@@ -1,6 +1,5 @@
 package com.rlogin.common.http;
 
-import java.io.File;
 import java.io.IOException;
 
 import javax.servlet.http.HttpServletResponse;
@@ -21,11 +20,6 @@ public class NJReserveResponseHandler extends BasicResponseHandler {
 	public NJReserveResponseHandler(HttpServletResponse servletResponse) {
 		super();
 		this.servletResponse = servletResponse;
-	}
-
-	public static void main(String[] args) throws IOException {
-		File file = new File("D://ss.txt");
-		file.createNewFile();
 	}
 
 	@Override

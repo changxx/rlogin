@@ -1,5 +1,4 @@
-<style>
-</style>
+#set($title = "主页")
 <ul class="table-view gjj"> 
    <li class="table-view-cell">
         <span class="left">$!gjjUser.name</span>
@@ -33,6 +32,6 @@
    </li> 
 </ul> 
 <nav class="bar bar-tab"> 
-   <a class="tab-item active" href="#"> <span class="tab-label">最近一年明细</span> </a> 
-   <a class="tab-item" href="#"> <span class="tab-label">贷款个数（n）</span> </a> 
+   <a class="tab-item" href="$!content/gjj/recent"> <span class="tab-label">最近一年明细</span> </a> 
+   <a class="tab-item" href="$!content/gjj/loan"> <span class="tab-label">贷款个数（n）</span> </a> 
 </nav> 

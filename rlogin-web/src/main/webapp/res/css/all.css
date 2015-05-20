@@ -1,19 +1,43 @@
-.gjj{
-    font-size: 14px;
+.title {
+	font-weight: bold;
 }
 
-.table-view.gjj{
-    border-top: 0px;
+.gjj {
+	font-size: 14px;
+}
+
+.table-view.gjj {
+	border-top: 0px;
 }
 
 .gjj .table-view-cell {
-  padding: 11px 20px;
+	padding: 11px 20px;
 }
 
-.gjj li.table-view-cell .left{
-	
+.gjj li.table-view-cell .left {
+	float: left;
 }
 
-.gjj li.table-view-cell .right{
+.gjj li.table-view-cell .right {
 	float: right;
+}
+
+.left {
+	float: left;
+}
+
+.right {
+	float: right;
+}
+
+.w-25 {
+	width: 25%;
+}
+
+.pd-2 {
+	padding: 1px;
+}
+
+.text-r {
+	text-align: right;
 }

@@ -9,9 +9,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
@@ -23,41 +25,53 @@ import org.joda.time.DateTime;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.rlogin.common.frame.Result;
+import com.rlogin.common.frame.json.Result;
 import com.rlogin.common.http.HttpClientSupport;
 import com.rlogin.common.http.NJReserveResponseHandler;
 import com.rlogin.common.util.DateUtils;
 import com.rlogin.common.util.JSONUtils;
 import com.rlogin.dao.mapper.gjj.GjjAccDetailMapper;
 import com.rlogin.dao.mapper.gjj.GjjDetailMapper;
+import com.rlogin.dao.mapper.gjj.GjjRepayDetailMapper;
 import com.rlogin.dao.mapper.gjj.GjjUserMapper;
 import com.rlogin.domain.gjj.GjjAccDetail;
 import com.rlogin.domain.gjj.GjjAccDetailExample;
 import com.rlogin.domain.gjj.GjjDetail;
 import com.rlogin.domain.gjj.GjjDetailExample;
+import com.rlogin.domain.gjj.GjjRepayDetail;
+import com.rlogin.domain.gjj.GjjRepayDetailExample;
 import com.rlogin.domain.gjj.GjjUser;
 import com.rlogin.domain.gjj.GjjUserExample;
 import com.rlogin.domain.gjj.PoolSelect;
 import com.rlogin.domain.gjj.result.GjjResult;
-import com.rlogin.domain.gjj.result.detail.Detail;
+import com.rlogin.domain.gjj.result.detail.GjjCDetail;
 import com.rlogin.domain.gjj.result.detail.GjjDetailResult;
+import com.rlogin.domain.gjj.result.replay.GjjCReplayDetail;
+import com.rlogin.domain.gjj.result.replay.GjjReplayDetailResult;
 import com.rlogin.service.GjjService;
 
 @Service
 public class GjjServiceImpl implements GjjService {
 
-    @Autowired
-    private GjjUserMapper      gjjUserMapper;
+    private static final Logger  log = LoggerFactory.getLogger(GjjServiceImpl.class);
 
     @Autowired
-    private GjjAccDetailMapper gjjAccDetailMapper;
+    private GjjUserMapper        gjjUserMapper;
 
     @Autowired
-    private GjjDetailMapper    gjjDetailMapper;
+    private GjjAccDetailMapper   gjjAccDetailMapper;
+
+    @Autowired
+    private GjjDetailMapper      gjjDetailMapper;
+
+    @Autowired
+    private GjjRepayDetailMapper gjjRepayDetailMapper;
 
     @Override
     public Result fetchService(String certinum, String pass, String cookie) {
@@ -79,7 +93,7 @@ public class GjjServiceImpl implements GjjService {
         try {
             post.setEntity(new UrlEncodedFormEntity(params));
         } catch (UnsupportedEncodingException e1) {
-            e1.printStackTrace();
+            log.error("", e1);
         }
         post.addHeader(
                 "User-Agent",
@@ -93,19 +107,102 @@ public class GjjServiceImpl implements GjjService {
         try {
             responseBody = httpClient.execute(post, responseHandler);
         } catch (ClientProtocolException e) {
-            e.printStackTrace();
+            log.error("", e);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("", e);
         }
         GjjResult gjjResult = JSONUtils.jsonToObject(responseBody, GjjResult.class);
-        //  纪录公积金用户, 明细
+        //  纪录公积金用户
         GjjUser gjjUser = this.recordUser(certinum, pass, poolSelect, gjjResult);
 
-        // 纪录公积金详情
-        this.recordDetailList(cookie, gjjUser);
+        // 记录公积金明细
+        this.recordGjjDetail(cookie, gjjUser);
+
+        // 记录贷款明细
+        this.recordLoanDetail(cookie, gjjUser);
 
         result.setCode(gjjUser != null ? Result.SUCCESS : Result.ERROR);
         return result;
+    }
+
+    /**
+     * 记录公积金明细
+     * @param cookie
+     * @param gjjUser
+     * @return
+     */
+    private Integer recordGjjDetail(String cookie, GjjUser gjjUser) {
+        log.info("记录公积金明细 start, cookie: {}, gjjUser: {}", cookie, gjjUser);
+        Map<String, String> extParms = new HashMap<String, String>();
+        extParms.put("begdate", "2000-01-01");
+        extParms.put("enddate", new DateTime().toString("yyyy-MM-dd"));
+        extParms.put("accnum", gjjUser.getGjjAcc());
+        extParms.put("accname", gjjUser.getName());
+
+        String dataPool = this.getTabelDataPool(cookie, gjjUser, "70000002", extParms);
+        // 纪录公积金详情
+        String gjjDetailListStr = this.getDetailList(cookie, dataPool, gjjUser, extParms);
+
+        // 公积金明细列表
+        GjjDetailResult result = JSONUtils.jsonToObject(gjjDetailListStr, GjjDetailResult.class);
+
+        List<GjjDetail> gjjDetails = new ArrayList<GjjDetail>();
+        if (result != null && result.getData() != null && result.getData().getData() != null) {
+            for (GjjCDetail detail : result.getData().getData()) {
+                gjjDetails.add(this.resultDetailToGjjDetail(detail, gjjUser));
+            }
+            if (gjjDetails != null && gjjDetails.size() > 0) {
+                // 重新插入以前缴纳纪录
+                GjjDetailExample detailExample = new GjjDetailExample();
+                detailExample.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId());
+                Integer delDetailNum = gjjDetailMapper.deleteByExample(detailExample);
+                log.info("删除" + gjjUser.getAccId() + ":" + delDetailNum + "条");
+            }
+            this.insertDetailBatch(gjjDetails);
+        }
+        log.info("记录公积金明细结束, 记录{}条, 用户: {}", gjjDetails.size(), gjjUser.getName());
+        return gjjDetails.size();
+    }
+
+    /**
+     * 记录贷款明细
+     * @param cookie
+     * @param gjjUser
+     */
+    private void recordLoanDetail(String cookie, GjjUser gjjUser) {
+        log.info("记录贷款明细开始, cookie: {}, gjjUser: {}", cookie, gjjUser);
+        Map<String, String> extParms = new HashMap<String, String>();
+        extParms.put("begdate", "2000-01-01");
+        extParms.put("enddate", new DateTime().toString("yyyy-MM-dd"));
+        extParms.put("accnum", gjjUser.getGjjAcc());
+        extParms.put("accname", gjjUser.getName());
+        extParms.put("certinum", gjjUser.getAccId());
+        extParms.put("loanaccnum", "");
+
+        String dataPool = this.getTabelDataPool(cookie, gjjUser, "60000001", extParms);
+
+        String loanDetailListStr = this.getLoanDetailList(cookie, dataPool, gjjUser);
+        log.info("贷款明细json: {}", loanDetailListStr);
+
+        GjjReplayDetailResult result = JSONUtils.jsonToObject(loanDetailListStr, GjjReplayDetailResult.class);
+
+        List<GjjRepayDetail> repayDetails = new ArrayList<GjjRepayDetail>();
+
+        if (result != null && result.getData() != null && result.getData().getData() != null) {
+            for (GjjCReplayDetail repayDetail : result.getData().getData()) {
+                repayDetails.add(this.resultToGjjRepayDetail(repayDetail, gjjUser));
+            }
+            if (repayDetails.size() > 0) {
+                // 把以前的删除了
+                GjjRepayDetailExample example = new GjjRepayDetailExample();
+                example.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId());
+                Integer delRepayDetailNum = gjjRepayDetailMapper.deleteByExample(example);
+                log.info("删除" + gjjUser.getAccId() + ":" + delRepayDetailNum + "条");
+            }
+            this.insertRepayDetailBatch(repayDetails);
+        }
+
+        log.info("记录贷款明细结束, 记录{}条, 用户: {}", repayDetails.size(), gjjUser.getName());
     }
 
     /**
@@ -126,9 +223,9 @@ public class GjjServiceImpl implements GjjService {
         try {
             responseBody = httpClient.execute(post, responseHandler);
         } catch (ClientProtocolException e) {
-            e.printStackTrace();
+            log.error("", e);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("", e);
         }
         return this.getPoolSelect(responseBody);
     }
@@ -145,21 +242,20 @@ public class GjjServiceImpl implements GjjService {
         PoolSelect poolSelect = new PoolSelect();
         for (Field field : poolSelect.getClass().getDeclaredFields()) {
             String val = this.getPoolSelectItem(field.getName(), poolSelectStr);
-            System.out.println(val);
             try {
                 PropertyDescriptor pd = new PropertyDescriptor(field.getName(), poolSelect.getClass());
                 Method md = pd.getWriteMethod();
                 try {
                     md.invoke(poolSelect, val);
                 } catch (IllegalArgumentException e) {
-                    e.printStackTrace();
+                    log.error("", e);
                 } catch (IllegalAccessException e) {
-                    e.printStackTrace();
+                    log.error("", e);
                 } catch (InvocationTargetException e) {
-                    e.printStackTrace();
+                    log.error("", e);
                 }
             } catch (IntrospectionException e) {
-                e.printStackTrace();
+                log.error("", e);
             }
         }
 
@@ -251,10 +347,38 @@ public class GjjServiceImpl implements GjjService {
     /**
      * 纪录公积金详情
      */
-    private void recordDetailList(String cookie, GjjUser gjjUser) {
+    private String getTabelDataPool(String cookie, GjjUser gjjUser, String procid,
+            Map<String, String> extParms) {
+
+        // 获取初始化数据池的html
+        String dataPoolResponseBody = this.getDataPool(cookie, procid, gjjUser, extParms);
+        // 数据池
+        String dataPool = this.getDataPool(dataPoolResponseBody);
+        // 数据总线
+        PoolSelect poolSelect = this.getPoolSelect(dataPoolResponseBody);
+        try {
+            // 发请求，使datapool生效
+            this.commandSummer(poolSelect, cookie, extParms);
+        } catch (ClientProtocolException e1) {
+            log.error("", e1);
+        } catch (IOException e1) {
+            log.error("", e1);
+        }
+
+        return dataPool;
+    }
+
+    /**
+     * 获取查询使用的数据池
+     * @param cookie
+     * @param procid
+     * @param gjjUser
+     * @return
+     */
+    private String getDataPool(String cookie, String procid, GjjUser gjjUser, Map<String, String> extParms) {
         HttpClient httpClient = HttpClientSupport.getHttpClient();
 
-        HttpGet post = new HttpGet("http://www.njgjj.com/init.summer?_PROCID=70000002");
+        HttpGet post = new HttpGet("http://www.njgjj.com/init.summer?_PROCID=" + procid);
         post.addHeader("Cookie", cookie);
 
         // 创建响应处理器处理服务器响应内容
@@ -264,107 +388,76 @@ public class GjjServiceImpl implements GjjService {
         try {
             responseBody = httpClient.execute(post, responseHandler);
         } catch (ClientProtocolException e) {
-            e.printStackTrace();
+            log.error("", e);
         } catch (IOException e) {
-            e.printStackTrace();
-        }
-        // 详情页查询使用
-        String dataPool = this.getDataPool(responseBody);
-
-        // 数据总线
-        PoolSelect poolSelect = this.getPoolSelect(responseBody);
-        try {
-            // 发请求，使datapool生效
-            this.commandSummer(poolSelect, cookie);
-        } catch (ClientProtocolException e1) {
-            e1.printStackTrace();
-        } catch (IOException e1) {
-            e1.printStackTrace();
+            log.error("", e);
         }
 
-        try {
-            String detailListStr = this.getDetailList(cookie, dataPool, gjjUser);
-            GjjDetailResult gjjDetailResult = JSONUtils.jsonToObject(detailListStr, GjjDetailResult.class);
-
-            List<GjjDetail> gjjDetails = new ArrayList<GjjDetail>();
-            if (gjjDetailResult != null && gjjDetailResult.getData() != null
-                    && gjjDetailResult.getData().getData() != null) {
-                for (Detail detail : gjjDetailResult.getData().getData()) {
-                    gjjDetails.add(this.resultDetailToGjjDetail(detail, gjjUser));
-                }
-                if (gjjDetails != null && gjjDetails.size() > 0) {
-                    // 重新插入以前缴纳纪录
-                    GjjDetailExample detailExample = new GjjDetailExample();
-                    detailExample.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId());
-                    Integer delDetailNum = gjjDetailMapper.deleteByExample(detailExample);
-                    System.out.println("删除" + gjjUser.getAccId() + ":" + delDetailNum + "条");
-                }
-                this.insertDetailBatch(gjjDetails);
-            }
-
-        } catch (ClientProtocolException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        return responseBody;
     }
 
     /**
      * 发请求，使datapool生效
      * @param poolSelect
+     * @param extParms
      * @param gjjUser
      * @throws ClientProtocolException
      * @throws IOException
      */
-    public void commandSummer(PoolSelect poolSelect, String cookie) throws ClientProtocolException,
-            IOException {
+    public void commandSummer(PoolSelect poolSelect, String cookie, Map<String, String> extParms)
+            throws ClientProtocolException, IOException {
         HttpClient httpClient = HttpClientSupport.getHttpClient();
 
         HttpPost post = new HttpPost("http://www.njgjj.com/command.summer?uuid=" + System.currentTimeMillis());
 
         post.addHeader("Cookie", cookie);
 
-        post.setEntity(new UrlEncodedFormEntity(this.getDetailCommandSummerParams(poolSelect)));
+        post.setEntity(new UrlEncodedFormEntity(this.getDetailCommandSummerParams(poolSelect, extParms)));
         // 创建响应处理器处理服务器响应内容
         ResponseHandler<String> responseHandler = new NJReserveResponseHandler();
         // 执行请求并获取结果
-        System.out.println("commandSummer----------------------------------------start");
+        log.info("commandSummer----------------------------------------start");
         String responseBody = httpClient.execute(post, responseHandler);
-        System.out.println(responseBody);
-        System.out.println("commandSummer----------------------------------------end");
+        log.info(responseBody);
+        log.info("commandSummer----------------------------------------end");
     }
 
     /**
      * 根据数据总线获取post参数
      * @param poolSelect
+     * @param extParms
      * @return
      */
-    private List<BasicNameValuePair> getDetailCommandSummerParams(PoolSelect poolSelect) {
+    private List<BasicNameValuePair> getDetailCommandSummerParams(PoolSelect poolSelect,
+            Map<String, String> extParms) {
         List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
         for (Field field : poolSelect.getClass().getDeclaredFields()) {
             PropertyDescriptor pd = null;
             try {
                 pd = new PropertyDescriptor(field.getName(), poolSelect.getClass());
             } catch (IntrospectionException e) {
-                e.printStackTrace();
+                log.error("", e);
             }
             Method md = pd.getReadMethod();
             String val = null;
             try {
                 val = (String) md.invoke(poolSelect);
             } catch (IllegalArgumentException e) {
-                e.printStackTrace();
+                log.error("", e);
             } catch (IllegalAccessException e) {
-                e.printStackTrace();
+                log.error("", e);
             } catch (InvocationTargetException e) {
-                e.printStackTrace();
+                log.error("", e);
             }
             params.add(new BasicNameValuePair(field.getName(), val));
         }
-        params.add(new BasicNameValuePair("begdate", "2000-01-01"));
-        params.add(new BasicNameValuePair("enddate", new DateTime().toString("yyyy-MM-dd")));
-        params.add(new BasicNameValuePair("accnum", poolSelect.get_ACCNUM()));
-        params.add(new BasicNameValuePair("accname", poolSelect.get_ACCNAME()));
+
+        if (extParms != null && extParms.size() > 0) {
+            for (String key : extParms.keySet()) {
+                params.add(new BasicNameValuePair(key, extParms.get(key)));
+            }
+        }
+
         return params;
     }
 
@@ -375,12 +468,19 @@ public class GjjServiceImpl implements GjjService {
         }
     }
 
+    @Transactional
+    private void insertRepayDetailBatch(List<GjjRepayDetail> details) {
+        for (GjjRepayDetail gjjDetail : details) {
+            gjjRepayDetailMapper.insert(gjjDetail);
+        }
+    }
+
     /**
      * 获取到的公积金详情转化
      * @param detail
      * @return
      */
-    private GjjDetail resultDetailToGjjDetail(Detail detail, GjjUser gjjUser) {
+    private GjjDetail resultDetailToGjjDetail(GjjCDetail detail, GjjUser gjjUser) {
         GjjDetail gjjDetail = new GjjDetail();
         gjjDetail.setBalance(this.getDouble(detail.getPayvouamt()));// 余额
         gjjDetail.setIdCard(gjjUser.getAccId());// 身份证号码
@@ -396,8 +496,31 @@ public class GjjServiceImpl implements GjjService {
         return gjjDetail;
     }
 
-    private String getDetailList(String cookie, String dataPool, GjjUser gjjUser)
-            throws ClientProtocolException, IOException {
+    /**
+     * 获取到的贷款详情转化
+     * @param detail
+     * @return
+     */
+    private GjjRepayDetail resultToGjjRepayDetail(GjjCReplayDetail detail, GjjUser gjjUser) {
+        GjjRepayDetail repayDetail = new GjjRepayDetail();
+        repayDetail.setAccNo(gjjUser.getAccId());// 证件号码
+        repayDetail.setLoanAcc(detail.getLoanaccnum());// 贷款账号
+        repayDetail.setLoanAmount(this.getDouble(detail.getLoanamt()));// 贷款金额
+        repayDetail.setLoanMonth(this.getInteger(detail.getLoanterm()));// 贷款期限(月)
+        repayDetail.setLoanSrc(detail.getFundsource());// 还贷资金来源
+        repayDetail.setLoanTeller(detail.getAgentop());// 柜员号
+        repayDetail.setLoanTerm(this.getInteger(detail.getTermnum()));// 期数
+        repayDetail.setLoanType(detail.getLoanfundtype());// 还款类型
+        repayDetail.setName(gjjUser.getName());
+        repayDetail.setParseTime(new Date());// 数据解析时间
+        repayDetail.setTradeAmount(this.getDouble(detail.getTransamt()));// 发生额
+        repayDetail.setTradeTime(DateUtils.strToDate(detail.getTransdate()));// 交易日期
+        repayDetail.setTypeCode(detail.getSummarycode());// 业务摘要码
+        repayDetail.setUserAccId(detail.getCertinum());// 用户登录号
+        return repayDetail;
+    }
+
+    private String getDetailList(String cookie, String dataPool, GjjUser gjjUser, Map<String, String> extParms) {
         HttpClient httpClient = HttpClientSupport.getHttpClient();
 
         HttpPost post = new HttpPost("http://njgjj.com/dynamictable?uuid=" + System.currentTimeMillis());
@@ -420,21 +543,62 @@ public class GjjServiceImpl implements GjjService {
         params.add(new BasicNameValuePair("enddate", new DateTime().toString("yyyy-MM-dd")));
         params.add(new BasicNameValuePair("errorFilter", "1=1"));
 
-        System.out.println(params);
-
-        post.setEntity(new UrlEncodedFormEntity(params));
+        try {
+            post.setEntity(new UrlEncodedFormEntity(params));
+        } catch (UnsupportedEncodingException e) {
+            log.error("", e);
+        }
 
         post.addHeader("Cookie", cookie);
 
         // 创建响应处理器处理服务器响应内容
         ResponseHandler<String> responseHandler = new NJReserveResponseHandler();
         // 执行请求并获取结果
-        String responseBody = httpClient.execute(post, responseHandler);
-        System.out.println("----------------------------------------");
-        System.out.println(responseBody);
-        System.out.println("----------------------------------------");
+        String responseBody = null;
+        try {
+            responseBody = httpClient.execute(post, responseHandler);
+        } catch (ClientProtocolException e) {
+            log.error("", e);
+        } catch (IOException e) {
+            log.error("", e);
+        }
+        log.info("公积金详情json：{}", responseBody);
 
         return responseBody;
+    }
+
+    /**
+     * 记录贷款详情
+     * @param cookie
+     * @param dataPool
+     * @param gjjUser
+     * @return
+     */
+    private String getLoanDetailList(String cookie, String dataPool, GjjUser gjjUser) {
+        String url = "http://njgjj.com/dynamictable?uuid=" + System.currentTimeMillis();
+
+        List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
+        params.add(new BasicNameValuePair("dynamicTable_id", "datalist"));
+        params.add(new BasicNameValuePair("dynamicTable_currentPage", "0"));
+        params.add(new BasicNameValuePair("dynamicTable_pageSize", "1000"));
+        params.add(new BasicNameValuePair("dynamicTable_nextPage", "1"));
+        params.add(new BasicNameValuePair("dynamicTable_page", "/ydpx/60000001/600001_01.ydpx"));
+        params.add(new BasicNameValuePair("dynamicTable_paging", "true"));
+        params.add(new BasicNameValuePair("dynamicTable_configSqlCheck", "0"));
+        params.add(new BasicNameValuePair("errorFilter", "1=1"));
+        params.add(new BasicNameValuePair("loanaccnum", ""));
+        params.add(new BasicNameValuePair("accname", gjjUser.getName()));
+        params.add(new BasicNameValuePair("certinum", gjjUser.getAccId()));
+        params.add(new BasicNameValuePair("begdate", "2000-01-01"));
+        params.add(new BasicNameValuePair("enddate", new DateTime().toString("yyyy-MM-dd")));
+        params.add(new BasicNameValuePair("_APPLY", "0"));
+        params.add(new BasicNameValuePair("_CHANNEL", "1"));
+        params.add(new BasicNameValuePair("_PROCID", "60000001"));
+        params.add(new BasicNameValuePair("_DATAPOOL_", dataPool));
+
+        String loanDetailListStr = HttpClientSupport.post(url, cookie, params);
+
+        return loanDetailListStr;
     }
 
     /**
@@ -460,7 +624,7 @@ public class GjjServiceImpl implements GjjService {
         try {
             return Double.parseDouble(str);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("", e);
             return null;
         }
     }
@@ -469,7 +633,7 @@ public class GjjServiceImpl implements GjjService {
         try {
             return Double.parseDouble(map.get(key));
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("", e);
             return null;
         }
     }
@@ -478,7 +642,7 @@ public class GjjServiceImpl implements GjjService {
         try {
             return Integer.parseInt(str);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("", e);
             return null;
         }
     }
@@ -487,7 +651,7 @@ public class GjjServiceImpl implements GjjService {
         try {
             return Integer.parseInt(map.get(key));
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("", e);
             return null;
         }
     }
@@ -506,6 +670,13 @@ public class GjjServiceImpl implements GjjService {
         example.createCriteria().andUserAccIdEqualTo(certinum);
         List<GjjAccDetail> accDetails = gjjAccDetailMapper.selectByExample(example);
         return accDetails.size() > 0 ? accDetails.get(0) : null;
+    }
+
+    @Override
+    public List<GjjDetail> getRecentGjjDetails(String certinum) {
+        GjjDetailExample example = new GjjDetailExample();
+        example.createCriteria().andTradeTimeGreaterThan(new DateTime().minusYears(1).toDate());
+        return gjjDetailMapper.selectByExample(example);
     }
 
 }
