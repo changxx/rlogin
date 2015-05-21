@@ -1,5 +1,7 @@
 # intellij idea file
 *.iml
+*.idea
+*.Ds_Store
 
 # eclipse file
 *.classpath
