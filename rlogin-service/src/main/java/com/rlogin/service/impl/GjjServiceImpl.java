@@ -10,10 +10,11 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
@@ -38,12 +39,15 @@ import com.rlogin.common.util.DateUtils;
 import com.rlogin.common.util.JSONUtils;
 import com.rlogin.dao.mapper.gjj.GjjAccDetailMapper;
 import com.rlogin.dao.mapper.gjj.GjjDetailMapper;
+import com.rlogin.dao.mapper.gjj.GjjLoanMapper;
 import com.rlogin.dao.mapper.gjj.GjjRepayDetailMapper;
 import com.rlogin.dao.mapper.gjj.GjjUserMapper;
 import com.rlogin.domain.gjj.GjjAccDetail;
 import com.rlogin.domain.gjj.GjjAccDetailExample;
 import com.rlogin.domain.gjj.GjjDetail;
 import com.rlogin.domain.gjj.GjjDetailExample;
+import com.rlogin.domain.gjj.GjjLoan;
+import com.rlogin.domain.gjj.GjjLoanExample;
 import com.rlogin.domain.gjj.GjjRepayDetail;
 import com.rlogin.domain.gjj.GjjRepayDetailExample;
 import com.rlogin.domain.gjj.GjjUser;
@@ -72,6 +76,9 @@ public class GjjServiceImpl implements GjjService {
 
     @Autowired
     private GjjRepayDetailMapper gjjRepayDetailMapper;
+    
+    @Autowired
+    private GjjLoanMapper gjjLoanMapper;
 
     @Override
     public Result fetchService(String certinum, String pass, String cookie) {
@@ -115,11 +122,14 @@ public class GjjServiceImpl implements GjjService {
         //  纪录公积金用户
         GjjUser gjjUser = this.recordUser(certinum, pass, poolSelect, gjjResult);
 
-        // 记录公积金明细
-        this.recordGjjDetail(cookie, gjjUser);
+		// 记录公积金明细
+		//this.recordGjjDetail(cookie, gjjUser);
 
-        // 记录贷款明细
-        this.recordLoanDetail(cookie, gjjUser);
+		// 记录贷款明细
+		//this.recordLoanDetail(cookie, gjjUser);
+
+		// 纪录贷款信息
+		this.recordLoan(cookie, gjjUser);
 
         result.setCode(gjjUser != null ? Result.SUCCESS : Result.ERROR);
         return result;
@@ -204,7 +214,134 @@ public class GjjServiceImpl implements GjjService {
 
         log.info("记录贷款明细结束, 记录{}条, 用户: {}", repayDetails.size(), gjjUser.getName());
     }
+    
+    /**
+     * 纪录贷款信息
+     * @param cookie
+     * @param gjjUser
+     */
+	public void recordLoan(String cookie, GjjUser gjjUser) {
 
+		GjjRepayDetailExample gjjRepayDetailExample = new GjjRepayDetailExample();
+		gjjRepayDetailExample.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId());
+		List<GjjRepayDetail> gjjRepayDetails = gjjRepayDetailMapper.selectByExample(gjjRepayDetailExample);
+
+		Set<String> loanAccses = new HashSet<String>();
+		for (GjjRepayDetail detail : gjjRepayDetails) {
+			loanAccses.add(detail.getLoanAcc());
+		}
+
+		String url = "http://www.njgjj.com/command.summer?uuid=" + System.currentTimeMillis();
+
+		List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
+		params.add(new BasicNameValuePair("$page", "/ydpx/60000005/600005_01.ydpx"));
+		params.add(new BasicNameValuePair("CURRENT_SYSTEM_DATE", new DateTime().toString("yyyy-MM-dd")));
+		params.add(new BasicNameValuePair("_ACCNAME", gjjUser.getName()));
+		params.add(new BasicNameValuePair("_ACCNUM", gjjUser.getGjjAcc()));
+		params.add(new BasicNameValuePair("BRANCHKIND", "0"));
+		params.add(new BasicNameValuePair("_DEPUTYIDCARDNUM", gjjUser.getAccId()));
+		params.add(new BasicNameValuePair("_IS", "-1709955"));
+		params.add(new BasicNameValuePair("_ISCROP", gjjUser.getName()));
+		params.add(new BasicNameValuePair("_LOGIP", "20150521193613278"));
+		params.add(new BasicNameValuePair("_PAGEID", "step1"));
+		params.add(new BasicNameValuePair("_PORCNAME", "个贷分户查询"));
+		params.add(new BasicNameValuePair("_PROCID", "60000005"));
+		params.add(new BasicNameValuePair("_RW", "w"));
+		params.add(new BasicNameValuePair("_SENDDATE", new DateTime().toString("yyyy-MM-dd")));
+		params.add(new BasicNameValuePair("_SENDOPERID", new DateTime().minusDays(1).toString("yyyy-MM-dd")));
+		params.add(new BasicNameValuePair("_TYPE", "init"));
+		params.add(new BasicNameValuePair("_UNITACCNAME", ""));
+		params.add(new BasicNameValuePair("_WITHKEY", "0"));
+		params.add(new BasicNameValuePair("certinum5", gjjUser.getAccId()));
+		params.add(new BasicNameValuePair("isSamePer", "false"));
+		params.add(new BasicNameValuePair("termnum", ""));
+		params.add(new BasicNameValuePair("transdate", ""));
+		params.add(new BasicNameValuePair("unitaccname", ""));
+		params.add(new BasicNameValuePair("usebal", ""));
+		params.add(new BasicNameValuePair("yearrpykind", ""));
+		params.add(new BasicNameValuePair("cardno", ""));
+		params.add(new BasicNameValuePair("lmcardno", ""));
+
+		for (String loanAccse : loanAccses) {
+			log.info("贷款账号：{}", loanAccse);
+
+			List<BasicNameValuePair> params2 = new ArrayList<BasicNameValuePair>(params);
+			params2.add(new BasicNameValuePair("loanaccnum", loanAccse));
+
+			String loanResult = HttpClientSupport.post(url, cookie, params2);
+
+			log.info("贷款信息json：{}", loanResult);
+
+			GjjResult gjjResult = JSONUtils.jsonToObject(loanResult, GjjResult.class);
+
+			if (gjjResult != null && gjjResult.getData() != null) {
+				GjjLoanExample gjjLoanExample = new GjjLoanExample();
+				gjjLoanExample.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId()).andLoanAccEqualTo(loanAccse);
+				gjjLoanMapper.deleteByExample(gjjLoanExample);
+			}
+
+			GjjLoan gjjLoan = new GjjLoan();
+			gjjLoan.setUserAccId(gjjUser.getAccId());
+			gjjLoan.setLoanAcc(loanAccse);
+			gjjLoan.setLoanUserName(gjjUser.getName());
+			gjjLoan.setLoanUserId(gjjUser.getIdCard());
+			gjjLoan.setLoanUserCompany(gjjResult.getData().get("unitaccname"));
+			gjjLoan.setLoanUserPhone(gjjResult.getData().get("handset"));
+			gjjLoan.setLoanUserGjjAcc(gjjResult.getData().get("cardaccnum"));
+			gjjLoan.setLoanUserGjjMAmount(this.getDouble(gjjResult.getData().get("monpaysum")));
+			gjjLoan.setLoanUserGjjStatus(gjjResult.getData().get("indiaccstate"));
+			gjjLoan.setLoanUserBalance(this.getDouble(gjjResult.getData().get("bal")));
+			gjjLoan.setLoanUserAddAcc(gjjResult.getData().get("btaccnum"));
+			gjjLoan.setLoanUserAddBlance(this.getDouble(gjjResult.getData().get("amt8")));
+			gjjLoan.setLoanSpouseName(gjjResult.getData().get("matename"));
+			gjjLoan.setLoanSpouseId(gjjResult.getData().get("matecertinum"));
+			gjjLoan.setLoanSpouseCompany(gjjResult.getData().get("oldunitaccname"));
+			gjjLoan.setLoanSpousePhone(gjjResult.getData().get("linkphone"));
+			gjjLoan.setLoanSpouseGjjAcc(gjjResult.getData().get("accnum3"));
+			gjjLoan.setLoanSpouseGjjMAmount(this.getDouble(gjjResult.getData().get("repayamt")));
+			gjjLoan.setLoanSpouseGjjStatus(gjjResult.getData().get("accstate"));
+			gjjLoan.setLoanSpouseBalance(this.getDouble(gjjResult.getData().get("usebal")));
+			gjjLoan.setLoanSpouseAddAcc(gjjResult.getData().get("btaccnum1"));
+			gjjLoan.setLoanSpouseAddBlance(this.getDouble(gjjResult.getData().get("amt9")));
+			gjjLoan.setLoanAmount(this.getDouble(gjjResult.getData().get("loanamt")));
+			gjjLoan.setLoanRate(this.getDouble(gjjResult.getData().get("loanrate")));
+			gjjLoan.setmAmount(this.getDouble(gjjResult.getData().get("repayprin")));
+			gjjLoan.setmRate(this.getDouble(gjjResult.getData().get("loanrate")));
+			gjjLoan.setLoanBeginTime(DateUtils.strToDate(gjjResult.getData().get("begdate")));
+			gjjLoan.setLoanEndTime(DateUtils.strToDate(gjjResult.getData().get("enddate")));
+			gjjLoan.setLastPlan(DateUtils.strToDate(gjjResult.getData().get("lasttransdate")));
+			gjjLoan.setLastReal(DateUtils.strToDate(gjjResult.getData().get("enddate2")));
+			gjjLoan.setAccBank(gjjResult.getData().get("earnstbankaccnum"));
+			gjjLoan.setLeftMonth(this.getInteger(gjjResult.getData().get("remainterm")));
+			gjjLoan.setmMonth(gjjResult.getData().get("termnum"));
+			gjjLoan.setCurrentTermAmount(this.getDouble(gjjResult.getData().get("plandedprin")));
+			gjjLoan.setCurrentTermTime(DateUtils.strToDate(gjjResult.getData().get("enddate2")));
+			gjjLoan.setCurrentTermRate(this.getDouble(gjjResult.getData().get("planint")));
+			gjjLoan.setCurrentTermPrincipal(this.getDouble(gjjResult.getData().get("planprin")));
+			gjjLoan.setRepayType(gjjResult.getData().get("repaymode"));
+			gjjLoan.setOverM(this.getInteger(gjjResult.getData().get("repaydate")));
+			gjjLoan.setOverdueRate(this.getDouble(gjjResult.getData().get("oweprin")));
+			gjjLoan.setOverShouldRate(this.getDouble(gjjResult.getData().get("oweint")));
+			gjjLoan.setOverdueRealRate(this.getDouble(gjjResult.getData().get("repaypun")));
+			gjjLoan.setTrustLoanType(gjjResult.getData().get("fundrpykind"));
+			gjjLoan.setTrustLoanUse(gjjResult.getData().get("yearrpykind"));
+			gjjLoan.setTrustLoanUse(gjjResult.getData().get("fundrpykind"));
+			gjjLoan.setTrustTime(DateUtils.strToDate(gjjResult.getData().get("transdate")));
+			gjjLoan.setTrustLoanAcc(gjjResult.getData().get("accnum4"));
+			gjjLoan.setTrustAddAcc(gjjResult.getData().get("btaccnum2"));
+			gjjLoan.setTrustSpouseAcc(gjjResult.getData().get("accnum5"));
+			gjjLoan.setTrustSpouseAddAcc(gjjResult.getData().get("btaccnum3"));
+			gjjLoan.setLoanSum(this.getDouble(gjjResult.getData().get("amt1")));
+			gjjLoan.setPrincipalSum(this.getDouble(gjjResult.getData().get("amt2")));
+			gjjLoan.setRateSum(this.getDouble(gjjResult.getData().get("amt5")));
+			gjjLoan.setNormalBalanceSum(this.getDouble(gjjResult.getData().get("autpayamt")));
+			gjjLoan.setOverdueSum(this.getDouble(gjjResult.getData().get("amt6")));
+			gjjLoan.setParseTime(new Date());
+
+			gjjLoanMapper.insert(gjjLoan);
+		}
+	}
+	
     /**
      * 获取页面中的数据总线
      * @return
@@ -340,7 +477,7 @@ public class GjjServiceImpl implements GjjService {
         } else {
             gjjAccDetailMapper.insert(accDetail);
         }
-
+        
         return gjjUser;
     }
 
@@ -624,7 +761,6 @@ public class GjjServiceImpl implements GjjService {
         try {
             return Double.parseDouble(str);
         } catch (Exception e) {
-            log.error("", e);
             return null;
         }
     }
@@ -633,7 +769,6 @@ public class GjjServiceImpl implements GjjService {
         try {
             return Double.parseDouble(map.get(key));
         } catch (Exception e) {
-            log.error("", e);
             return null;
         }
     }
@@ -642,7 +777,6 @@ public class GjjServiceImpl implements GjjService {
         try {
             return Integer.parseInt(str);
         } catch (Exception e) {
-            log.error("", e);
             return null;
         }
     }
@@ -651,7 +785,6 @@ public class GjjServiceImpl implements GjjService {
         try {
             return Integer.parseInt(map.get(key));
         } catch (Exception e) {
-            log.error("", e);
             return null;
         }
     }

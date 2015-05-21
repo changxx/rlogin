@@ -9,8 +9,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.plaf.basic.BasicViewportUI;
-
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
@@ -210,6 +208,54 @@ public class HttpClientTest {
         String responseBody = httpClient.execute(post, responseHandler);
         System.out.println(responseBody);
         System.out.println("commandSummer----------------------------------------end");
+    }
+    
+    @Test
+    public void commandSummer2() throws ClientProtocolException, IOException {
+    	HttpClient httpClient = HttpClientSupport.getHttpClient();
+    	
+    	HttpPost post = new HttpPost("http://www.njgjj.com/command.summer?uuid=" + System.currentTimeMillis());
+    	
+    	post.addHeader("Cookie", "JSESSIONID=000096MiEwaVa0qEnPpgQSXcpxJ:-1");
+    	
+    	List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
+    	params.add(new BasicNameValuePair("$page", "/ydpx/60000005/600005_01.ydpx"));
+    	params.add(new BasicNameValuePair("CURRENT_SYSTEM_DATE", "2015-05-22"));
+    	params.add(new BasicNameValuePair("_ACCNAME", "徐伟"));
+    	params.add(new BasicNameValuePair("_ACCNUM", "3201000213202785"));
+    	params.add(new BasicNameValuePair("BRANCHKIND", "0"));
+    	params.add(new BasicNameValuePair("_DEPUTYIDCARDNUM", "321088198507175913"));
+    	params.add(new BasicNameValuePair("_IS", "-1709955"));
+    	params.add(new BasicNameValuePair("_ISCROP", "0"));
+    	params.add(new BasicNameValuePair("_LOGIP", "20150521193613278"));
+    	params.add(new BasicNameValuePair("_PAGEID", "step1"));
+    	params.add(new BasicNameValuePair("_PORCNAME", "个贷分户查询"));
+    	params.add(new BasicNameValuePair("_PROCID", "60000005"));
+    	params.add(new BasicNameValuePair("_RW", "w"));
+    	params.add(new BasicNameValuePair("_SENDDATE", "2015-05-22"));
+    	params.add(new BasicNameValuePair("_SENDOPERID", "2015-05-21"));
+    	params.add(new BasicNameValuePair("_TYPE", "init"));
+    	params.add(new BasicNameValuePair("_UNITACCNAME", ""));
+    	params.add(new BasicNameValuePair("_WITHKEY", "0"));
+    	params.add(new BasicNameValuePair("certinum5", "321088198507175913"));
+    	params.add(new BasicNameValuePair("isSamePer", "false"));	
+    	params.add(new BasicNameValuePair("loanaccnum", "02231210001441470"));
+    	params.add(new BasicNameValuePair("termnum", ""));
+    	params.add(new BasicNameValuePair("transdate", ""));
+    	params.add(new BasicNameValuePair("unitaccname", ""));
+    	params.add(new BasicNameValuePair("usebal", ""));
+    	params.add(new BasicNameValuePair("yearrpykind", ""));
+    	params.add(new BasicNameValuePair("cardno", ""));
+    	params.add(new BasicNameValuePair("lmcardno", ""));
+    	
+    	post.setEntity(new UrlEncodedFormEntity(params));
+    	// 创建响应处理器处理服务器响应内容
+    	ResponseHandler<String> responseHandler = new NJReserveResponseHandler();
+    	// 执行请求并获取结果
+    	System.out.println("commandSummer----------------------------------------start");
+    	String responseBody = httpClient.execute(post, responseHandler);
+    	System.out.println(responseBody);
+    	System.out.println("commandSummer----------------------------------------end");
     }
 
     @Test
