@@ -40,11 +40,12 @@
 
     <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
         <property name="dataSource" ref="c3p0DataSource"/>
-        <property name="mapperLocations" value="classpath*:com/rlogin/dao/mapping/gjj/*.xml"></property>
+        <property name="mapperLocations" value="classpath*:mapping/*.xml"></property>
     </bean>
     
     <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
 		<property name="basePackage" value="com.rlogin.dao" />
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory" />
 	</bean>
 
 </beans>

@@ -118,18 +118,19 @@ public class GjjServiceImpl implements GjjService {
         } catch (IOException e) {
             log.error("", e);
         }
+        log.info("公积金详情json：{}", responseBody);
         GjjResult gjjResult = JSONUtils.jsonToObject(responseBody, GjjResult.class);
         //  纪录公积金用户
         GjjUser gjjUser = this.recordUser(certinum, pass, poolSelect, gjjResult);
 
-		// 记录公积金明细
-		//this.recordGjjDetail(cookie, gjjUser);
+        // 记录公积金明细
+        //this.recordGjjDetail(cookie, gjjUser);
 
-		// 记录贷款明细
-		//this.recordLoanDetail(cookie, gjjUser);
+        // 记录贷款明细
+        //this.recordLoanDetail(cookie, gjjUser);
 
-		// 纪录贷款信息
-		this.recordLoan(cookie, gjjUser);
+        // 纪录贷款信息
+        this.recordLoan(cookie, gjjUser);
 
         result.setCode(gjjUser != null ? Result.SUCCESS : Result.ERROR);
         return result;
@@ -280,67 +281,79 @@ public class GjjServiceImpl implements GjjService {
 				gjjLoanMapper.deleteByExample(gjjLoanExample);
 			}
 
-			GjjLoan gjjLoan = new GjjLoan();
-			gjjLoan.setUserAccId(gjjUser.getAccId());
-			gjjLoan.setLoanAcc(loanAccse);
-			gjjLoan.setLoanUserName(gjjUser.getName());
-			gjjLoan.setLoanUserId(gjjUser.getIdCard());
-			gjjLoan.setLoanUserCompany(gjjResult.getData().get("unitaccname"));
-			gjjLoan.setLoanUserPhone(gjjResult.getData().get("handset"));
-			gjjLoan.setLoanUserGjjAcc(gjjResult.getData().get("cardaccnum"));
-			gjjLoan.setLoanUserGjjMAmount(this.getDouble(gjjResult.getData().get("monpaysum")));
-			gjjLoan.setLoanUserGjjStatus(gjjResult.getData().get("indiaccstate"));
-			gjjLoan.setLoanUserBalance(this.getDouble(gjjResult.getData().get("bal")));
-			gjjLoan.setLoanUserAddAcc(gjjResult.getData().get("btaccnum"));
-			gjjLoan.setLoanUserAddBlance(this.getDouble(gjjResult.getData().get("amt8")));
-			gjjLoan.setLoanSpouseName(gjjResult.getData().get("matename"));
-			gjjLoan.setLoanSpouseId(gjjResult.getData().get("matecertinum"));
-			gjjLoan.setLoanSpouseCompany(gjjResult.getData().get("oldunitaccname"));
-			gjjLoan.setLoanSpousePhone(gjjResult.getData().get("linkphone"));
-			gjjLoan.setLoanSpouseGjjAcc(gjjResult.getData().get("accnum3"));
-			gjjLoan.setLoanSpouseGjjMAmount(this.getDouble(gjjResult.getData().get("repayamt")));
-			gjjLoan.setLoanSpouseGjjStatus(gjjResult.getData().get("accstate"));
-			gjjLoan.setLoanSpouseBalance(this.getDouble(gjjResult.getData().get("usebal")));
-			gjjLoan.setLoanSpouseAddAcc(gjjResult.getData().get("btaccnum1"));
-			gjjLoan.setLoanSpouseAddBlance(this.getDouble(gjjResult.getData().get("amt9")));
-			gjjLoan.setLoanAmount(this.getDouble(gjjResult.getData().get("loanamt")));
-			gjjLoan.setLoanRate(this.getDouble(gjjResult.getData().get("loanrate")));
-			gjjLoan.setmAmount(this.getDouble(gjjResult.getData().get("repayprin")));
-			gjjLoan.setmRate(this.getDouble(gjjResult.getData().get("loanrate")));
-			gjjLoan.setLoanBeginTime(DateUtils.strToDate(gjjResult.getData().get("begdate")));
-			gjjLoan.setLoanEndTime(DateUtils.strToDate(gjjResult.getData().get("enddate")));
-			gjjLoan.setLastPlan(DateUtils.strToDate(gjjResult.getData().get("lasttransdate")));
-			gjjLoan.setLastReal(DateUtils.strToDate(gjjResult.getData().get("enddate2")));
-			gjjLoan.setAccBank(gjjResult.getData().get("earnstbankaccnum"));
-			gjjLoan.setLeftMonth(this.getInteger(gjjResult.getData().get("remainterm")));
-			gjjLoan.setmMonth(gjjResult.getData().get("termnum"));
-			gjjLoan.setCurrentTermAmount(this.getDouble(gjjResult.getData().get("plandedprin")));
-			gjjLoan.setCurrentTermTime(DateUtils.strToDate(gjjResult.getData().get("enddate2")));
-			gjjLoan.setCurrentTermRate(this.getDouble(gjjResult.getData().get("planint")));
-			gjjLoan.setCurrentTermPrincipal(this.getDouble(gjjResult.getData().get("planprin")));
-			gjjLoan.setRepayType(gjjResult.getData().get("repaymode"));
-			gjjLoan.setOverM(this.getInteger(gjjResult.getData().get("repaydate")));
-			gjjLoan.setOverdueRate(this.getDouble(gjjResult.getData().get("oweprin")));
-			gjjLoan.setOverShouldRate(this.getDouble(gjjResult.getData().get("oweint")));
-			gjjLoan.setOverdueRealRate(this.getDouble(gjjResult.getData().get("repaypun")));
-			gjjLoan.setTrustLoanType(gjjResult.getData().get("fundrpykind"));
-			gjjLoan.setTrustLoanUse(gjjResult.getData().get("yearrpykind"));
-			gjjLoan.setTrustLoanUse(gjjResult.getData().get("fundrpykind"));
-			gjjLoan.setTrustTime(DateUtils.strToDate(gjjResult.getData().get("transdate")));
-			gjjLoan.setTrustLoanAcc(gjjResult.getData().get("accnum4"));
-			gjjLoan.setTrustAddAcc(gjjResult.getData().get("btaccnum2"));
-			gjjLoan.setTrustSpouseAcc(gjjResult.getData().get("accnum5"));
-			gjjLoan.setTrustSpouseAddAcc(gjjResult.getData().get("btaccnum3"));
-			gjjLoan.setLoanSum(this.getDouble(gjjResult.getData().get("amt1")));
-			gjjLoan.setPrincipalSum(this.getDouble(gjjResult.getData().get("amt2")));
-			gjjLoan.setRateSum(this.getDouble(gjjResult.getData().get("amt5")));
-			gjjLoan.setNormalBalanceSum(this.getDouble(gjjResult.getData().get("autpayamt")));
-			gjjLoan.setOverdueSum(this.getDouble(gjjResult.getData().get("amt6")));
-			gjjLoan.setParseTime(new Date());
+            GjjLoan gjjLoan = this.gjjResultToGjjLoan(gjjResult,gjjUser,loanAccse);
 
 			gjjLoanMapper.insert(gjjLoan);
 		}
 	}
+
+    /**
+     * 转化成公积金贷款详情
+     * @param gjjResult
+     * @param gjjUser
+     * @param loanAccse
+     * @return
+     */
+    private GjjLoan gjjResultToGjjLoan(GjjResult gjjResult, GjjUser gjjUser, String loanAccse){
+        GjjLoan gjjLoan = new GjjLoan();
+        gjjLoan.setUserAccId(gjjUser.getAccId());
+        gjjLoan.setLoanAcc(loanAccse);
+        gjjLoan.setLoanUserName(gjjUser.getName());
+        gjjLoan.setLoanUserId(gjjUser.getIdCard());
+        gjjLoan.setLoanUserCompany(gjjResult.getData().get("unitaccname"));
+        gjjLoan.setLoanUserPhone(gjjResult.getData().get("handset"));
+        gjjLoan.setLoanUserGjjAcc(gjjResult.getData().get("cardaccnum"));
+        gjjLoan.setLoanUserGjjMAmount(this.getDouble(gjjResult.getData().get("monpaysum")));
+        gjjLoan.setLoanUserGjjStatus(gjjResult.getData().get("indiaccstate"));
+        gjjLoan.setLoanUserBalance(this.getDouble(gjjResult.getData().get("bal")));
+        gjjLoan.setLoanUserAddAcc(gjjResult.getData().get("btaccnum"));
+        gjjLoan.setLoanUserAddBlance(this.getDouble(gjjResult.getData().get("amt8")));
+        gjjLoan.setLoanSpouseName(gjjResult.getData().get("matename"));
+        gjjLoan.setLoanSpouseId(gjjResult.getData().get("matecertinum"));
+        gjjLoan.setLoanSpouseCompany(gjjResult.getData().get("oldunitaccname"));
+        gjjLoan.setLoanSpousePhone(gjjResult.getData().get("linkphone"));
+        gjjLoan.setLoanSpouseGjjAcc(gjjResult.getData().get("accnum3"));
+        gjjLoan.setLoanSpouseGjjMAmount(this.getDouble(gjjResult.getData().get("repayamt")));
+        gjjLoan.setLoanSpouseGjjStatus(gjjResult.getData().get("accstate"));
+        gjjLoan.setLoanSpouseBalance(this.getDouble(gjjResult.getData().get("usebal")));
+        gjjLoan.setLoanSpouseAddAcc(gjjResult.getData().get("btaccnum1"));
+        gjjLoan.setLoanSpouseAddBlance(this.getDouble(gjjResult.getData().get("amt9")));
+        gjjLoan.setLoanAmount(this.getDouble(gjjResult.getData().get("loanamt")));
+        gjjLoan.setLoanRate(this.getDouble(gjjResult.getData().get("loanrate")));
+        gjjLoan.setmAmount(this.getDouble(gjjResult.getData().get("repayprin")));
+        gjjLoan.setmRate(this.getDouble(gjjResult.getData().get("loanrate")));
+        gjjLoan.setLoanBeginTime(DateUtils.strToDate(gjjResult.getData().get("begdate")));
+        gjjLoan.setLoanEndTime(DateUtils.strToDate(gjjResult.getData().get("enddate")));
+        gjjLoan.setLastPlan(DateUtils.strToDate(gjjResult.getData().get("lasttransdate")));
+        gjjLoan.setLastReal(DateUtils.strToDate(gjjResult.getData().get("enddate2")));
+        gjjLoan.setAccBank(gjjResult.getData().get("earnstbankaccnum"));
+        gjjLoan.setLeftMonth(this.getInteger(gjjResult.getData().get("remainterm")));
+        gjjLoan.setmMonth(gjjResult.getData().get("termnum"));
+        gjjLoan.setCurrentTermAmount(this.getDouble(gjjResult.getData().get("plandedprin")));
+        gjjLoan.setCurrentTermTime(DateUtils.strToDate(gjjResult.getData().get("enddate2")));
+        gjjLoan.setCurrentTermRate(this.getDouble(gjjResult.getData().get("planint")));
+        gjjLoan.setCurrentTermPrincipal(this.getDouble(gjjResult.getData().get("planprin")));
+        gjjLoan.setRepayType(gjjResult.getData().get("repaymode"));
+        gjjLoan.setOverM(this.getInteger(gjjResult.getData().get("repaydate")));
+        gjjLoan.setOverdueRate(this.getDouble(gjjResult.getData().get("oweprin")));
+        gjjLoan.setOverShouldRate(this.getDouble(gjjResult.getData().get("oweint")));
+        gjjLoan.setOverdueRealRate(this.getDouble(gjjResult.getData().get("repaypun")));
+        gjjLoan.setTrustLoanType(gjjResult.getData().get("fundrpykind"));
+        gjjLoan.setTrustLoanUse(gjjResult.getData().get("yearrpykind"));
+        gjjLoan.setTrustLoanUse(gjjResult.getData().get("fundrpykind"));
+        gjjLoan.setTrustTime(DateUtils.strToDate(gjjResult.getData().get("transdate")));
+        gjjLoan.setTrustLoanAcc(gjjResult.getData().get("accnum4"));
+        gjjLoan.setTrustAddAcc(gjjResult.getData().get("btaccnum2"));
+        gjjLoan.setTrustSpouseAcc(gjjResult.getData().get("accnum5"));
+        gjjLoan.setTrustSpouseAddAcc(gjjResult.getData().get("btaccnum3"));
+        gjjLoan.setLoanSum(this.getDouble(gjjResult.getData().get("amt1")));
+        gjjLoan.setPrincipalSum(this.getDouble(gjjResult.getData().get("amt2")));
+        gjjLoan.setRateSum(this.getDouble(gjjResult.getData().get("amt5")));
+        gjjLoan.setNormalBalanceSum(this.getDouble(gjjResult.getData().get("autpayamt")));
+        gjjLoan.setOverdueSum(this.getDouble(gjjResult.getData().get("amt6")));
+        gjjLoan.setParseTime(new Date());
+        return gjjLoan;
+    }
 	
     /**
      * 获取页面中的数据总线
@@ -427,15 +440,14 @@ public class GjjServiceImpl implements GjjService {
         gjjUser.setIdCard(certinum);
         gjjUser.setGjjAcc(poolSelect.get_ACCNUM());
         gjjUser.setLoginTime(new Date());
-
-        GjjUserExample userExample = new GjjUserExample();
-        userExample.createCriteria().andAccIdEqualTo(certinum);
-
         gjjUser.setBalance(this.getDouble(gjjResult.getData(), "amt1"));
         gjjUser.setmContribute(this.getDouble(gjjResult.getData(), "amt2"));
         gjjUser.setGjjRate(this.getDouble(gjjResult.getData(), "unitprop"));
         gjjUser.setAccStatus(this.getInteger(gjjResult.getData(), "unitaccstate"));
         gjjUser.setLoginTime(new Date());
+
+        GjjUserExample userExample = new GjjUserExample();
+        userExample.createCriteria().andAccIdEqualTo(certinum);
 
         GjjUser dbGjjUser = this.getGjjUser(userExample);
         if (dbGjjUser == null) {
@@ -537,7 +549,6 @@ public class GjjServiceImpl implements GjjService {
      * 发请求，使datapool生效
      * @param poolSelect
      * @param extParms
-     * @param gjjUser
      * @throws ClientProtocolException
      * @throws IOException
      */

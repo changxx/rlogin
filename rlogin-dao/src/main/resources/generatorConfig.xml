@@ -9,8 +9,8 @@
 			userId="root" password="MySql" />
 		<javaModelGenerator targetPackage="com.rlogin.domain.gjj"
 			targetProject="src/main/java" />
-		<sqlMapGenerator targetPackage="com.rlogin.dao.mapping.gjj"
-			targetProject="src/main/java" />
+		<sqlMapGenerator targetPackage="mapping"
+			targetProject="src/main/resources" />
 		<javaClientGenerator targetPackage="com.rlogin.dao.mapper.gjj"
 			targetProject="src/main/java" type="XMLMAPPER" />
 		<table schema="rlogin" tableName="gjj_acc_detail">
