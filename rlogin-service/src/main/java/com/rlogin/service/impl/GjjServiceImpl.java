@@ -7,14 +7,11 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.*;
 
+import com.rlogin.domain.base.Query;
+import com.rlogin.domain.gjj.*;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
@@ -42,17 +39,6 @@ import com.rlogin.dao.mapper.gjj.GjjDetailMapper;
 import com.rlogin.dao.mapper.gjj.GjjLoanMapper;
 import com.rlogin.dao.mapper.gjj.GjjRepayDetailMapper;
 import com.rlogin.dao.mapper.gjj.GjjUserMapper;
-import com.rlogin.domain.gjj.GjjAccDetail;
-import com.rlogin.domain.gjj.GjjAccDetailExample;
-import com.rlogin.domain.gjj.GjjDetail;
-import com.rlogin.domain.gjj.GjjDetailExample;
-import com.rlogin.domain.gjj.GjjLoan;
-import com.rlogin.domain.gjj.GjjLoanExample;
-import com.rlogin.domain.gjj.GjjRepayDetail;
-import com.rlogin.domain.gjj.GjjRepayDetailExample;
-import com.rlogin.domain.gjj.GjjUser;
-import com.rlogin.domain.gjj.GjjUserExample;
-import com.rlogin.domain.gjj.PoolSelect;
 import com.rlogin.domain.gjj.result.GjjResult;
 import com.rlogin.domain.gjj.result.detail.GjjCDetail;
 import com.rlogin.domain.gjj.result.detail.GjjDetailResult;
@@ -60,25 +46,29 @@ import com.rlogin.domain.gjj.result.replay.GjjCReplayDetail;
 import com.rlogin.domain.gjj.result.replay.GjjReplayDetailResult;
 import com.rlogin.service.GjjService;
 
+import javax.annotation.PostConstruct;
+
 @Service
 public class GjjServiceImpl implements GjjService {
 
-    private static final Logger  log = LoggerFactory.getLogger(GjjServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(GjjServiceImpl.class);
 
     @Autowired
-    private GjjUserMapper        gjjUserMapper;
+    private GjjUserMapper gjjUserMapper;
 
     @Autowired
-    private GjjAccDetailMapper   gjjAccDetailMapper;
+    private GjjAccDetailMapper gjjAccDetailMapper;
 
     @Autowired
-    private GjjDetailMapper      gjjDetailMapper;
+    private GjjDetailMapper gjjDetailMapper;
 
     @Autowired
     private GjjRepayDetailMapper gjjRepayDetailMapper;
-    
+
     @Autowired
     private GjjLoanMapper gjjLoanMapper;
+
+    private static BlockingQueue<GjjAsynDomain> gjjAsynDomainQuery = new LinkedBlockingQueue<GjjAsynDomain>();
 
     @Override
     public Result fetchService(String certinum, String pass, String cookie) {
@@ -122,27 +112,31 @@ public class GjjServiceImpl implements GjjService {
         GjjResult gjjResult = JSONUtils.jsonToObject(responseBody, GjjResult.class);
         //  纪录公积金用户
         GjjUser gjjUser = this.recordUser(certinum, pass, poolSelect, gjjResult);
-
-        // 记录公积金明细
-        //this.recordGjjDetail(cookie, gjjUser);
-
-        // 记录贷款明细
-        //this.recordLoanDetail(cookie, gjjUser);
-
-        // 纪录贷款信息
-        this.recordLoan(cookie, gjjUser);
+        gjjAsynDomainQuery.add(new GjjAsynDomain(gjjUser, cookie));
 
         result.setCode(gjjUser != null ? Result.SUCCESS : Result.ERROR);
         return result;
     }
 
+
+    @PostConstruct
+    public void recrodTask() {
+        log.info("启动纪录线程池");
+        ExecutorService executorService = Executors.newFixedThreadPool(5);
+        for (int i = 0; i < 5; i++) {
+            executorService.submit(new GjjAsynRecorder(this));
+        }
+    }
+
+
     /**
      * 记录公积金明细
+     *
      * @param cookie
      * @param gjjUser
      * @return
      */
-    private Integer recordGjjDetail(String cookie, GjjUser gjjUser) {
+    public Integer recordGjjDetail(String cookie, GjjUser gjjUser) {
         log.info("记录公积金明细 start, cookie: {}, gjjUser: {}", cookie, gjjUser);
         Map<String, String> extParms = new HashMap<String, String>();
         extParms.put("begdate", "2000-01-01");
@@ -177,10 +171,11 @@ public class GjjServiceImpl implements GjjService {
 
     /**
      * 记录贷款明细
+     *
      * @param cookie
      * @param gjjUser
      */
-    private void recordLoanDetail(String cookie, GjjUser gjjUser) {
+    public void recordLoanDetail(String cookie, GjjUser gjjUser) {
         log.info("记录贷款明细开始, cookie: {}, gjjUser: {}", cookie, gjjUser);
         Map<String, String> extParms = new HashMap<String, String>();
         extParms.put("begdate", "2000-01-01");
@@ -215,86 +210,88 @@ public class GjjServiceImpl implements GjjService {
 
         log.info("记录贷款明细结束, 记录{}条, 用户: {}", repayDetails.size(), gjjUser.getName());
     }
-    
+
     /**
      * 纪录贷款信息
+     *
      * @param cookie
      * @param gjjUser
      */
-	public void recordLoan(String cookie, GjjUser gjjUser) {
+    public void recordLoan(String cookie, GjjUser gjjUser) {
 
-		GjjRepayDetailExample gjjRepayDetailExample = new GjjRepayDetailExample();
-		gjjRepayDetailExample.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId());
-		List<GjjRepayDetail> gjjRepayDetails = gjjRepayDetailMapper.selectByExample(gjjRepayDetailExample);
+        GjjRepayDetailExample gjjRepayDetailExample = new GjjRepayDetailExample();
+        gjjRepayDetailExample.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId());
+        List<GjjRepayDetail> gjjRepayDetails = gjjRepayDetailMapper.selectByExample(gjjRepayDetailExample);
 
-		Set<String> loanAccses = new HashSet<String>();
-		for (GjjRepayDetail detail : gjjRepayDetails) {
-			loanAccses.add(detail.getLoanAcc());
-		}
+        Set<String> loanAccses = new HashSet<String>();
+        for (GjjRepayDetail detail : gjjRepayDetails) {
+            loanAccses.add(detail.getLoanAcc());
+        }
 
-		String url = "http://www.njgjj.com/command.summer?uuid=" + System.currentTimeMillis();
+        String url = "http://www.njgjj.com/command.summer?uuid=" + System.currentTimeMillis();
 
-		List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
-		params.add(new BasicNameValuePair("$page", "/ydpx/60000005/600005_01.ydpx"));
-		params.add(new BasicNameValuePair("CURRENT_SYSTEM_DATE", new DateTime().toString("yyyy-MM-dd")));
-		params.add(new BasicNameValuePair("_ACCNAME", gjjUser.getName()));
-		params.add(new BasicNameValuePair("_ACCNUM", gjjUser.getGjjAcc()));
-		params.add(new BasicNameValuePair("BRANCHKIND", "0"));
-		params.add(new BasicNameValuePair("_DEPUTYIDCARDNUM", gjjUser.getAccId()));
-		params.add(new BasicNameValuePair("_IS", "-1709955"));
-		params.add(new BasicNameValuePair("_ISCROP", gjjUser.getName()));
-		params.add(new BasicNameValuePair("_LOGIP", "20150521193613278"));
-		params.add(new BasicNameValuePair("_PAGEID", "step1"));
-		params.add(new BasicNameValuePair("_PORCNAME", "个贷分户查询"));
-		params.add(new BasicNameValuePair("_PROCID", "60000005"));
-		params.add(new BasicNameValuePair("_RW", "w"));
-		params.add(new BasicNameValuePair("_SENDDATE", new DateTime().toString("yyyy-MM-dd")));
-		params.add(new BasicNameValuePair("_SENDOPERID", new DateTime().minusDays(1).toString("yyyy-MM-dd")));
-		params.add(new BasicNameValuePair("_TYPE", "init"));
-		params.add(new BasicNameValuePair("_UNITACCNAME", ""));
-		params.add(new BasicNameValuePair("_WITHKEY", "0"));
-		params.add(new BasicNameValuePair("certinum5", gjjUser.getAccId()));
-		params.add(new BasicNameValuePair("isSamePer", "false"));
-		params.add(new BasicNameValuePair("termnum", ""));
-		params.add(new BasicNameValuePair("transdate", ""));
-		params.add(new BasicNameValuePair("unitaccname", ""));
-		params.add(new BasicNameValuePair("usebal", ""));
-		params.add(new BasicNameValuePair("yearrpykind", ""));
-		params.add(new BasicNameValuePair("cardno", ""));
-		params.add(new BasicNameValuePair("lmcardno", ""));
+        List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
+        params.add(new BasicNameValuePair("$page", "/ydpx/60000005/600005_01.ydpx"));
+        params.add(new BasicNameValuePair("CURRENT_SYSTEM_DATE", new DateTime().toString("yyyy-MM-dd")));
+        params.add(new BasicNameValuePair("_ACCNAME", gjjUser.getName()));
+        params.add(new BasicNameValuePair("_ACCNUM", gjjUser.getGjjAcc()));
+        params.add(new BasicNameValuePair("BRANCHKIND", "0"));
+        params.add(new BasicNameValuePair("_DEPUTYIDCARDNUM", gjjUser.getAccId()));
+        params.add(new BasicNameValuePair("_IS", "-1709955"));
+        params.add(new BasicNameValuePair("_ISCROP", gjjUser.getName()));
+        params.add(new BasicNameValuePair("_LOGIP", "20150521193613278"));
+        params.add(new BasicNameValuePair("_PAGEID", "step1"));
+        params.add(new BasicNameValuePair("_PORCNAME", "个贷分户查询"));
+        params.add(new BasicNameValuePair("_PROCID", "60000005"));
+        params.add(new BasicNameValuePair("_RW", "w"));
+        params.add(new BasicNameValuePair("_SENDDATE", new DateTime().toString("yyyy-MM-dd")));
+        params.add(new BasicNameValuePair("_SENDOPERID", new DateTime().minusDays(1).toString("yyyy-MM-dd")));
+        params.add(new BasicNameValuePair("_TYPE", "init"));
+        params.add(new BasicNameValuePair("_UNITACCNAME", ""));
+        params.add(new BasicNameValuePair("_WITHKEY", "0"));
+        params.add(new BasicNameValuePair("certinum5", gjjUser.getAccId()));
+        params.add(new BasicNameValuePair("isSamePer", "false"));
+        params.add(new BasicNameValuePair("termnum", ""));
+        params.add(new BasicNameValuePair("transdate", ""));
+        params.add(new BasicNameValuePair("unitaccname", ""));
+        params.add(new BasicNameValuePair("usebal", ""));
+        params.add(new BasicNameValuePair("yearrpykind", ""));
+        params.add(new BasicNameValuePair("cardno", ""));
+        params.add(new BasicNameValuePair("lmcardno", ""));
 
-		for (String loanAccse : loanAccses) {
-			log.info("贷款账号：{}", loanAccse);
+        for (String loanAccse : loanAccses) {
+            log.info("贷款账号：{}", loanAccse);
 
-			List<BasicNameValuePair> params2 = new ArrayList<BasicNameValuePair>(params);
-			params2.add(new BasicNameValuePair("loanaccnum", loanAccse));
+            List<BasicNameValuePair> params2 = new ArrayList<BasicNameValuePair>(params);
+            params2.add(new BasicNameValuePair("loanaccnum", loanAccse));
 
-			String loanResult = HttpClientSupport.post(url, cookie, params2);
+            String loanResult = HttpClientSupport.post(url, cookie, params2);
 
-			log.info("贷款信息json：{}", loanResult);
+            log.info("贷款信息json：{}", loanResult);
 
-			GjjResult gjjResult = JSONUtils.jsonToObject(loanResult, GjjResult.class);
+            GjjResult gjjResult = JSONUtils.jsonToObject(loanResult, GjjResult.class);
 
-			if (gjjResult != null && gjjResult.getData() != null) {
-				GjjLoanExample gjjLoanExample = new GjjLoanExample();
-				gjjLoanExample.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId()).andLoanAccEqualTo(loanAccse);
-				gjjLoanMapper.deleteByExample(gjjLoanExample);
-			}
+            if (gjjResult != null && gjjResult.getData() != null) {
+                GjjLoanExample gjjLoanExample = new GjjLoanExample();
+                gjjLoanExample.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId()).andLoanAccEqualTo(loanAccse);
+                gjjLoanMapper.deleteByExample(gjjLoanExample);
+            }
 
-            GjjLoan gjjLoan = this.gjjResultToGjjLoan(gjjResult,gjjUser,loanAccse);
+            GjjLoan gjjLoan = this.gjjResultToGjjLoan(gjjResult, gjjUser, loanAccse);
 
-			gjjLoanMapper.insert(gjjLoan);
-		}
-	}
+            gjjLoanMapper.insert(gjjLoan);
+        }
+    }
 
     /**
      * 转化成公积金贷款详情
+     *
      * @param gjjResult
      * @param gjjUser
      * @param loanAccse
      * @return
      */
-    private GjjLoan gjjResultToGjjLoan(GjjResult gjjResult, GjjUser gjjUser, String loanAccse){
+    private GjjLoan gjjResultToGjjLoan(GjjResult gjjResult, GjjUser gjjUser, String loanAccse) {
         GjjLoan gjjLoan = new GjjLoan();
         gjjLoan.setUserAccId(gjjUser.getAccId());
         gjjLoan.setLoanAcc(loanAccse);
@@ -354,9 +351,10 @@ public class GjjServiceImpl implements GjjService {
         gjjLoan.setParseTime(new Date());
         return gjjLoan;
     }
-	
+
     /**
      * 获取页面中的数据总线
+     *
      * @return
      */
     private PoolSelect getPoolSelectByHtml(String cookie) {
@@ -382,6 +380,7 @@ public class GjjServiceImpl implements GjjService {
 
     /**
      * 获取页面中的数据总线
+     *
      * @return
      */
     private PoolSelect getPoolSelect(String responseBody) {
@@ -426,6 +425,7 @@ public class GjjServiceImpl implements GjjService {
 
     /**
      * 登陆后纪录用户
+     *
      * @param certinum
      * @param pass
      * @param poolSelect
@@ -489,7 +489,7 @@ public class GjjServiceImpl implements GjjService {
         } else {
             gjjAccDetailMapper.insert(accDetail);
         }
-        
+
         return gjjUser;
     }
 
@@ -497,7 +497,7 @@ public class GjjServiceImpl implements GjjService {
      * 纪录公积金详情
      */
     private String getTabelDataPool(String cookie, GjjUser gjjUser, String procid,
-            Map<String, String> extParms) {
+                                    Map<String, String> extParms) {
 
         // 获取初始化数据池的html
         String dataPoolResponseBody = this.getDataPool(cookie, procid, gjjUser, extParms);
@@ -519,6 +519,7 @@ public class GjjServiceImpl implements GjjService {
 
     /**
      * 获取查询使用的数据池
+     *
      * @param cookie
      * @param procid
      * @param gjjUser
@@ -547,6 +548,7 @@ public class GjjServiceImpl implements GjjService {
 
     /**
      * 发请求，使datapool生效
+     *
      * @param poolSelect
      * @param extParms
      * @throws ClientProtocolException
@@ -572,12 +574,13 @@ public class GjjServiceImpl implements GjjService {
 
     /**
      * 根据数据总线获取post参数
+     *
      * @param poolSelect
      * @param extParms
      * @return
      */
     private List<BasicNameValuePair> getDetailCommandSummerParams(PoolSelect poolSelect,
-            Map<String, String> extParms) {
+                                                                  Map<String, String> extParms) {
         List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
         for (Field field : poolSelect.getClass().getDeclaredFields()) {
             PropertyDescriptor pd = null;
@@ -625,6 +628,7 @@ public class GjjServiceImpl implements GjjService {
 
     /**
      * 获取到的公积金详情转化
+     *
      * @param detail
      * @return
      */
@@ -646,6 +650,7 @@ public class GjjServiceImpl implements GjjService {
 
     /**
      * 获取到的贷款详情转化
+     *
      * @param detail
      * @return
      */
@@ -717,6 +722,7 @@ public class GjjServiceImpl implements GjjService {
 
     /**
      * 记录贷款详情
+     *
      * @param cookie
      * @param dataPool
      * @param gjjUser
@@ -751,6 +757,7 @@ public class GjjServiceImpl implements GjjService {
 
     /**
      * 详情页查询使用
+     *
      * @param html
      * @return
      */
@@ -823,4 +830,7 @@ public class GjjServiceImpl implements GjjService {
         return gjjDetailMapper.selectByExample(example);
     }
 
+    public BlockingQueue<GjjAsynDomain> getGjjAsynDomainQuery() {
+        return gjjAsynDomainQuery;
+    }
 }
