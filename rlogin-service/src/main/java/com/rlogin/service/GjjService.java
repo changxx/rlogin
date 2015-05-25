@@ -23,6 +23,8 @@ public interface GjjService {
      */
     public Result fetchService(String certinum, String pass, String cookie);
 
+    public void record() throws InterruptedException;
+
     /**
      * 获取用户信息
      *

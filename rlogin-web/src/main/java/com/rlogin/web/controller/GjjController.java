@@ -8,6 +8,11 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.rlogin.dao.mapper.gjj.GjjLoanMapper;
+import com.rlogin.dao.mapper.gjj.GjjLoanStatusMapper;
+import com.rlogin.domain.gjj.GjjLoan;
+import com.rlogin.domain.gjj.GjjLoanExample;
+import org.apache.http.HttpRequest;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
@@ -38,6 +43,7 @@ import com.rlogin.service.GjjService;
 
 /**
  * 公积金
+ *
  * @author changxx
  */
 @Controller
@@ -46,6 +52,12 @@ public class GjjController {
 
     @Autowired
     private GjjService gjjService;
+
+    @Autowired
+    private GjjLoanStatusMapper gjjLoanStatusMapper;
+
+    @Autowired
+    private GjjLoanMapper gjjLoanMapper;
 
     /**
      * 登录界面
@@ -88,7 +100,7 @@ public class GjjController {
     @RequestMapping("/loginin")
     @ResponseBody
     public Result loginin(@RequestParam String account, @RequestParam String pass,
-            @RequestParam String vericode, HttpServletRequest request, HttpServletResponse response)
+                          @RequestParam String vericode, HttpServletRequest request, HttpServletResponse response)
             throws ClientProtocolException, IOException {
         Result result = new Result();
         HttpClient httpClient = HttpClientSupport.getHttpClient();
@@ -203,6 +215,30 @@ public class GjjController {
         ModelAndView mv = new ModelAndView();
         String loginId = request.getAttribute(Constant.USER_COOKIE_KEY).toString();
         mv.addObject("gjjDetails", gjjService.getRecentGjjDetails(loginId));
+        return mv;
+    }
+
+    /**
+     * 贷款个数
+     *
+     * @param request
+     * @return
+     */
+    @Login
+    @RequestMapping("/loan")
+    public ModelAndView loan(HttpServletRequest request, @RequestParam(required = false) String loanAcc) {
+        ModelAndView mv = new ModelAndView();
+        String loginId = request.getAttribute(Constant.USER_COOKIE_KEY).toString();
+        mv.addObject("loginId", loginId);
+        mv.addObject("loanAcc", loanAcc);
+
+        if (loanAcc != null && !loanAcc.equals("")) {
+            GjjLoanExample example = new GjjLoanExample();
+            example.createCriteria().andLoanAccEqualTo(loanAcc).andUserAccIdEqualTo(loginId);
+            List<GjjLoan> gjjLoans = gjjLoanMapper.selectByExample(example);
+            mv.addObject("loan", gjjLoans.size() > 0 ? gjjLoans.get(0) : null);
+        }
+
         return mv;
     }
 

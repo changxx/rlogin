@@ -315,6 +315,24 @@ public class HttpClientTest {
 
     }
 
+    @Test
+    public void test5() throws ClientProtocolException, IOException {
+        HttpClient httpClient = HttpClientSupport.getHttpClient();
+
+        HttpGet post = new HttpGet("http://njgjj.com/dynamictable?uuid=" + System.currentTimeMillis() + "");
+
+        post.addHeader("Cookie", "JSESSIONID=00000I30w3f_Zw3QzUzzBM1sCHh:-1");
+
+        // 创建响应处理器处理服务器响应内容
+        ResponseHandler<String> responseHandler = new NJReserveResponseHandler();
+        // 执行请求并获取结果
+        String responseBody = httpClient.execute(post, responseHandler);
+        System.out.println("----------------------------------------");
+        System.out.println(responseBody);
+        System.out.println("----------------------------------------");
+
+    }
+
     private String getPoolSelectItem(String key, String poolSelect) {
         String fenge = "'";
         if (key.equals("$page")) {

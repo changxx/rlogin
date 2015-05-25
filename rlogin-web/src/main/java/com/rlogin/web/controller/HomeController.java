@@ -1,5 +1,6 @@
 package com.rlogin.web.controller;
 
+import com.rlogin.dao.mapper.gjj.GjjLoanStatusMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,9 @@ public class HomeController {
 
     @Autowired
     private GjjUserMapper       gjjUserMapper;
+
+    @Autowired
+    private GjjLoanStatusMapper gjjLoanStatusMapper;
 
     @RequestMapping("")
     public ModelAndView home() {

@@ -1,0 +1,69 @@
+#set($title = "贷款个数")
+<style>
+</style>
+<form method="get" class="input-group" action="$!content/gjj/loan">
+    <div class="input-row">
+        <label>证件号码：</label>
+        <label style="width: 60%; padding-left: 0px;">$!loginId</label>
+    </div>
+    <div class="input-row">
+        <label>贷款账号：</label>
+        <input type="text" name="loanAcc"  placeholder="贷款账号" value="$!loanAcc">
+    </div>
+    <br/>
+    <button type="submit" id="login" class="btn btn-positive btn-block">查询</button>
+</form>
+<ul class="table-view gjj">
+    <li class="table-view-cell">
+        <span class="left">贷款金额</span>
+        <span class="right">$!loan.loanAmount</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">利息</span>
+        <span class="right">$!gjjUser.accId</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">应还总额</span>
+        <span class="right">$!gjjUser.accId</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">已还本金</span>
+        <span class="right">$!loan.mAmount</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">已还利息</span>
+        <span class="right">$!loan.mRate</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">剩余总额</span>
+        <span class="right">$!gjjUser.accId</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">剩余本金</span>
+        <span class="right">$!loan.principalSum</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">剩余利息</span>
+        <span class="right">$!loan.overdueSum</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">当期还款日期</span>
+        <span class="right">$!dateTool.format('yyyy-MM-dd', $!loan.currentTermTime)</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">当期本金</span>
+        <span class="right">$!loan.currentTermPrincipal</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">当期利息</span>
+        <span class="right">$!loan.currentTermRate</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">逾期期数</span>
+        <span class="right">$!loan.overM</span>
+    </li>
+</ul>
+<nav class="bar bar-tab">
+   <a class="tab-item" href="$!content/gjj/recent"> <span class="tab-label">最近一年明细</span> </a>
+   <a class="tab-item active" href="$!content/gjj/loan"> <span class="tab-label">贷款个数（n）</span> </a>
+</nav> 

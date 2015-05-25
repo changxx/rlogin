@@ -9,3 +9,7 @@
 form {
 	padding: 5px;
 }
+
+.bar-nav~.content {
+	padding-bottom: 35px;
+}

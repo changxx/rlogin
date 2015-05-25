@@ -10,8 +10,11 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.*;
 
+import com.rlogin.dao.mapper.gjj.*;
 import com.rlogin.domain.base.Query;
 import com.rlogin.domain.gjj.*;
+import com.rlogin.domain.gjj.result.loan.LoanStatus;
+import com.rlogin.domain.gjj.result.loan.LoanStatusResult;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
@@ -34,11 +37,6 @@ import com.rlogin.common.http.HttpClientSupport;
 import com.rlogin.common.http.NJReserveResponseHandler;
 import com.rlogin.common.util.DateUtils;
 import com.rlogin.common.util.JSONUtils;
-import com.rlogin.dao.mapper.gjj.GjjAccDetailMapper;
-import com.rlogin.dao.mapper.gjj.GjjDetailMapper;
-import com.rlogin.dao.mapper.gjj.GjjLoanMapper;
-import com.rlogin.dao.mapper.gjj.GjjRepayDetailMapper;
-import com.rlogin.dao.mapper.gjj.GjjUserMapper;
 import com.rlogin.domain.gjj.result.GjjResult;
 import com.rlogin.domain.gjj.result.detail.GjjCDetail;
 import com.rlogin.domain.gjj.result.detail.GjjDetailResult;
@@ -67,6 +65,12 @@ public class GjjServiceImpl implements GjjService {
 
     @Autowired
     private GjjLoanMapper gjjLoanMapper;
+
+    @Autowired
+    private GjjRepayPlanMapper gjjRepayPlanMapper;
+
+    @Autowired
+    private GjjLoanStatusMapper gjjLoanStatusMapper;
 
     private static BlockingQueue<GjjAsynDomain> gjjAsynDomainQuery = new LinkedBlockingQueue<GjjAsynDomain>();
 
@@ -126,6 +130,30 @@ public class GjjServiceImpl implements GjjService {
         for (int i = 0; i < 5; i++) {
             executorService.submit(new GjjAsynRecorder(this));
         }
+    }
+
+    /**
+     * 纪录动作
+     *
+     * @throws InterruptedException
+     */
+    public void record() throws InterruptedException {
+        GjjAsynDomain gjjAsynDomain = this.getGjjAsynDomainQuery().take();
+
+        // 记录公积金明细
+        this.recordGjjDetail(gjjAsynDomain.getCookie(), gjjAsynDomain.getGjjUser());
+
+        // 记录贷款明细
+        this.recordLoanDetail(gjjAsynDomain.getCookie(), gjjAsynDomain.getGjjUser());
+
+        // 纪录贷款信息
+        Set<String> loanAccses = this.recordLoan(gjjAsynDomain.getCookie(), gjjAsynDomain.getGjjUser());
+
+        // 纪录还款计划
+        this.recordRepayPlan(gjjAsynDomain.getCookie(), gjjAsynDomain.getGjjUser(), loanAccses);
+
+        // 纪录贷款审批状态
+        this.recordLoanStatus(gjjAsynDomain.getCookie(), gjjAsynDomain.getGjjUser());
     }
 
 
@@ -217,7 +245,7 @@ public class GjjServiceImpl implements GjjService {
      * @param cookie
      * @param gjjUser
      */
-    public void recordLoan(String cookie, GjjUser gjjUser) {
+    public Set<String> recordLoan(String cookie, GjjUser gjjUser) {
 
         GjjRepayDetailExample gjjRepayDetailExample = new GjjRepayDetailExample();
         gjjRepayDetailExample.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId());
@@ -260,14 +288,14 @@ public class GjjServiceImpl implements GjjService {
         params.add(new BasicNameValuePair("lmcardno", ""));
 
         for (String loanAccse : loanAccses) {
-            log.info("贷款账号：{}", loanAccse);
+            log.info("纪录贷款信息开始，贷款账号：{}", loanAccse);
 
             List<BasicNameValuePair> params2 = new ArrayList<BasicNameValuePair>(params);
             params2.add(new BasicNameValuePair("loanaccnum", loanAccse));
 
             String loanResult = HttpClientSupport.post(url, cookie, params2);
 
-            log.info("贷款信息json：{}", loanResult);
+            log.info("纪录贷款信息，贷款信息json：{}", loanResult);
 
             GjjResult gjjResult = JSONUtils.jsonToObject(loanResult, GjjResult.class);
 
@@ -280,7 +308,11 @@ public class GjjServiceImpl implements GjjService {
             GjjLoan gjjLoan = this.gjjResultToGjjLoan(gjjResult, gjjUser, loanAccse);
 
             gjjLoanMapper.insert(gjjLoan);
+
+            log.info("纪录贷款信息结束");
+
         }
+        return loanAccses;
     }
 
     /**
@@ -302,7 +334,7 @@ public class GjjServiceImpl implements GjjService {
         gjjLoan.setLoanUserGjjAcc(gjjResult.getData().get("cardaccnum"));
         gjjLoan.setLoanUserGjjMAmount(this.getDouble(gjjResult.getData().get("monpaysum")));
         gjjLoan.setLoanUserGjjStatus(gjjResult.getData().get("indiaccstate"));
-        gjjLoan.setLoanUserBalance(this.getDouble(gjjResult.getData().get("bal")));
+        gjjLoan.setLoanUserBalance(this.getDouble(gjjResult.getData().get("curbal")));
         gjjLoan.setLoanUserAddAcc(gjjResult.getData().get("btaccnum"));
         gjjLoan.setLoanUserAddBlance(this.getDouble(gjjResult.getData().get("amt8")));
         gjjLoan.setLoanSpouseName(gjjResult.getData().get("matename"));
@@ -318,7 +350,7 @@ public class GjjServiceImpl implements GjjService {
         gjjLoan.setLoanAmount(this.getDouble(gjjResult.getData().get("loanamt")));
         gjjLoan.setLoanRate(this.getDouble(gjjResult.getData().get("loanrate")));
         gjjLoan.setmAmount(this.getDouble(gjjResult.getData().get("repayprin")));
-        gjjLoan.setmRate(this.getDouble(gjjResult.getData().get("loanrate")));
+        gjjLoan.setmRate(this.getDouble(gjjResult.getData().get("repayint")));
         gjjLoan.setLoanBeginTime(DateUtils.strToDate(gjjResult.getData().get("begdate")));
         gjjLoan.setLoanEndTime(DateUtils.strToDate(gjjResult.getData().get("enddate")));
         gjjLoan.setLastPlan(DateUtils.strToDate(gjjResult.getData().get("lasttransdate")));
@@ -327,17 +359,17 @@ public class GjjServiceImpl implements GjjService {
         gjjLoan.setLeftMonth(this.getInteger(gjjResult.getData().get("remainterm")));
         gjjLoan.setmMonth(gjjResult.getData().get("termnum"));
         gjjLoan.setCurrentTermAmount(this.getDouble(gjjResult.getData().get("plandedprin")));
-        gjjLoan.setCurrentTermTime(DateUtils.strToDate(gjjResult.getData().get("enddate2")));
+        gjjLoan.setCurrentTermTime(DateUtils.strToDate(gjjResult.getData().get("repaydate")));
         gjjLoan.setCurrentTermRate(this.getDouble(gjjResult.getData().get("planint")));
         gjjLoan.setCurrentTermPrincipal(this.getDouble(gjjResult.getData().get("planprin")));
         gjjLoan.setRepayType(gjjResult.getData().get("repaymode"));
-        gjjLoan.setOverM(this.getInteger(gjjResult.getData().get("repaydate")));
+        gjjLoan.setOverM(this.getInteger(gjjResult.getData().get("owecnt")));
         gjjLoan.setOverdueRate(this.getDouble(gjjResult.getData().get("oweprin")));
+        gjjLoan.setOverDuePrincipal(this.getDouble(gjjResult.getData().get("amt3")));
         gjjLoan.setOverShouldRate(this.getDouble(gjjResult.getData().get("oweint")));
         gjjLoan.setOverdueRealRate(this.getDouble(gjjResult.getData().get("repaypun")));
         gjjLoan.setTrustLoanType(gjjResult.getData().get("fundrpykind"));
         gjjLoan.setTrustLoanUse(gjjResult.getData().get("yearrpykind"));
-        gjjLoan.setTrustLoanUse(gjjResult.getData().get("fundrpykind"));
         gjjLoan.setTrustTime(DateUtils.strToDate(gjjResult.getData().get("transdate")));
         gjjLoan.setTrustLoanAcc(gjjResult.getData().get("accnum4"));
         gjjLoan.setTrustAddAcc(gjjResult.getData().get("btaccnum2"));
@@ -351,6 +383,147 @@ public class GjjServiceImpl implements GjjService {
         gjjLoan.setParseTime(new Date());
         return gjjLoan;
     }
+
+    /**
+     * 纪录还款计划
+     *
+     * @param cookie
+     * @param loanAccses
+     */
+    public void recordRepayPlan(String cookie, GjjUser gjjUser, Set<String> loanAccses) {
+        log.info("纪录还款计划开始: {}", gjjUser.getName());
+        String url = "http://www.njgjj.com/command.summer?uuid=" + System.currentTimeMillis();
+
+        List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
+        params.add(new BasicNameValuePair("$page", "/ydpx/60000002/600002_01.ydpx"));
+        params.add(new BasicNameValuePair("CURRENT_SYSTEM_DATE", new DateTime().toString("yyyy-MM-dd")));
+        params.add(new BasicNameValuePair("_ACCNAME", gjjUser.getName()));
+        params.add(new BasicNameValuePair("_ACCNUM", gjjUser.getGjjAcc()));
+        params.add(new BasicNameValuePair("BRANCHKIND", "0"));
+        params.add(new BasicNameValuePair("_DEPUTYIDCARDNUM", gjjUser.getAccId()));
+        params.add(new BasicNameValuePair("_IS", "-1709955"));
+        params.add(new BasicNameValuePair("_ISCROP", "0"));
+        params.add(new BasicNameValuePair("_LOGIP", "20150521193613278"));
+        params.add(new BasicNameValuePair("_PAGEID", "step1"));
+        params.add(new BasicNameValuePair("_PORCNAME", "贷款还款计划查询"));
+        params.add(new BasicNameValuePair("_PROCID", "60000002"));
+        params.add(new BasicNameValuePair("_RW", "w"));
+        params.add(new BasicNameValuePair("_SENDDATE", new DateTime().toString("yyyy-MM-dd")));
+        params.add(new BasicNameValuePair("_SENDOPERID", gjjUser.getGjjAcc()));
+        params.add(new BasicNameValuePair("_SENDTIME", new DateTime().minusDays(2).toString("yyyy-MM-dd")));
+        params.add(new BasicNameValuePair("_TYPE", "init"));
+        params.add(new BasicNameValuePair("_UNITACCNAME", ""));
+        params.add(new BasicNameValuePair("_WITHKEY", "0"));
+        params.add(new BasicNameValuePair("accname", "0"));
+        params.add(new BasicNameValuePair("certinum", gjjUser.getAccId()));
+        params.add(new BasicNameValuePair("certinum5", gjjUser.getAccId()));
+        params.add(new BasicNameValuePair("curbal", ""));
+        params.add(new BasicNameValuePair("enddate", ""));
+        params.add(new BasicNameValuePair("isSamePer", "false"));
+        params.add(new BasicNameValuePair("lasttransdate", ""));
+        params.add(new BasicNameValuePair("loanamt", ""));
+        params.add(new BasicNameValuePair("loanterm", ""));
+        params.add(new BasicNameValuePair("oldrepayaccnum", ""));
+        params.add(new BasicNameValuePair("remainterm", ""));
+
+        for (String loanAccse : loanAccses) {
+            log.info("获取贷款计划，贷款账号：{} 用户: {}", loanAccse, gjjUser.getName());
+
+            List<BasicNameValuePair> params2 = new ArrayList<BasicNameValuePair>(params);
+            params2.add(new BasicNameValuePair("loanaccnum", loanAccse));
+
+            String repayPlanResultJson = HttpClientSupport.post(url, cookie, params2);
+            log.info("贷款计划json：{}", repayPlanResultJson);
+
+            GjjResult gjjResult = JSONUtils.jsonToObject(repayPlanResultJson, GjjResult.class);
+            if (gjjResult != null && gjjResult.getData() != null) {
+                GjjRepayPlanExample example = new GjjRepayPlanExample();
+                example.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId()).andLoanIdEqualTo(loanAccse);
+                gjjRepayPlanMapper.deleteByExample(example);
+            }
+
+            GjjRepayPlan gjjRepayPlan = this.resultToGjjRepayPlan(gjjResult, gjjUser);
+            gjjRepayPlanMapper.insert(gjjRepayPlan);
+        }
+        log.info("纪录贷款计划结束");
+    }
+
+    /**
+     * 纪录贷款审批状态
+     *
+     * @param cookie
+     * @param gjjUser
+     */
+    private void recordLoanStatus(String cookie, GjjUser gjjUser) {
+        log.info("记录贷款审批状态 start, cookie: {}, 用户: {}", cookie, gjjUser.getName());
+        Map<String, String> extParms = new HashMap<String, String>();
+        extParms.put("accnum", "");
+        extParms.put("accname", gjjUser.getName());
+        extParms.put("certinum", gjjUser.getAccId());
+        extParms.put("certitype", "");
+        extParms.put("apprnum", "");
+        extParms.put("loanaccnum", "");
+        extParms.put("bankcode", "");
+        extParms.put("begappdate", "");
+        extParms.put("begappfinishdate", "");
+        extParms.put("begchkdate", "");
+        extParms.put("begguarcontrdate", "");
+        extParms.put("begguarcreadate", "");
+        extParms.put("comstate", "");
+        extParms.put("endappdate", "");
+        extParms.put("endappfinishdate", "");
+        extParms.put("endchkdate", "");
+        extParms.put("endguarcontrdate", "");
+        extParms.put("endguarcreadate", "");
+        extParms.put("instcode", "");
+
+        String dataPool = this.getTabelDataPool(cookie, gjjUser, "60000004", extParms);
+        // 纪录贷款审批信息
+        String loanStatusStr = this.getLoanStatusList(cookie, dataPool, gjjUser, extParms);
+
+        // 纪录贷款审批状态列表
+        LoanStatusResult result = JSONUtils.jsonToObject(loanStatusStr, LoanStatusResult.class);
+
+        List<GjjLoanStatus> gjjLoanStatus = new ArrayList<GjjLoanStatus>();
+        if (result != null && result.getData() != null && result.getData().getData() != null) {
+            for (LoanStatus loanStatus : result.getData().getData()) {
+                gjjLoanStatus.add(this.resultDetailToGjjDetail(loanStatus, gjjUser));
+            }
+            if (gjjLoanStatus != null && gjjLoanStatus.size() > 0) {
+                // 重新插入以前贷款审批纪录
+                GjjLoanStatusExample example = new GjjLoanStatusExample();
+                example.createCriteria().andUserAccIdEqualTo(gjjUser.getAccId());
+                Integer delDetailNum = gjjLoanStatusMapper.deleteByExample(example);
+                log.info("删除贷款审批纪录" + gjjUser.getAccId() + ":" + delDetailNum + "条");
+            }
+            this.insertLoanStatusBatch(gjjLoanStatus);
+        }
+        log.info("记录贷款审批纪录结束, 记录{}条, 用户: {}", gjjLoanStatus.size(), gjjUser.getName());
+    }
+
+    /**
+     * 转换成贷款计划
+     *
+     * @param result
+     * @param gjjUser
+     * @return
+     */
+    private GjjRepayPlan resultToGjjRepayPlan(GjjResult gjjResult, GjjUser gjjUser) {
+        GjjRepayPlan gjjRepayPlan = new GjjRepayPlan();
+        gjjRepayPlan.setUserAccId(gjjUser.getAccId());
+        gjjRepayPlan.setLoanId(gjjResult.getData().get("oldrepayaccnum"));
+        gjjRepayPlan.setName(gjjUser.getName());
+        gjjRepayPlan.setAccId(gjjUser.getAccId());
+        gjjRepayPlan.setLoanDeadline(DateUtils.strToDate(gjjResult.getData().get("enddate")));
+        gjjRepayPlan.setLoanBalance(this.getDouble(gjjResult.getData(), "curbal"));
+        gjjRepayPlan.setLoanAmount(this.getDouble(gjjResult.getData(), "loanamt"));
+        gjjRepayPlan.setLoanTermAmount(this.getInteger(gjjResult.getData(), "loanterm"));
+        gjjRepayPlan.setLoanTermLeft(this.getInteger(gjjResult.getData(), "remainterm"));
+        gjjRepayPlan.setLastTradeTime(DateUtils.strToDate(gjjResult.getData().get("lasttransdate")));
+        gjjRepayPlan.setParseTime(new Date());
+        return gjjRepayPlan;
+    }
+
 
     /**
      * 获取页面中的数据总线
@@ -626,6 +799,13 @@ public class GjjServiceImpl implements GjjService {
         }
     }
 
+    @Transactional
+    private void insertLoanStatusBatch(List<GjjLoanStatus> statues) {
+        for (GjjLoanStatus status : statues) {
+            gjjLoanStatusMapper.insert(status);
+        }
+    }
+
     /**
      * 获取到的公积金详情转化
      *
@@ -646,6 +826,28 @@ public class GjjServiceImpl implements GjjService {
         gjjDetail.setUserAccId(gjjUser.getAccId());// 用户登陆账号
         gjjDetail.setUserName(detail.getAccname1());// 姓名
         return gjjDetail;
+    }
+
+    /**
+     * 获取到的贷款审批纪录转化
+     *
+     * @return
+     */
+    private GjjLoanStatus resultDetailToGjjDetail(LoanStatus loanStatus, GjjUser gjjUser) {
+        GjjLoanStatus status = new GjjLoanStatus();
+        status.setUserAccId(gjjUser.getAccId());
+        status.setName(gjjUser.getName());
+        status.setIdCareType(loanStatus.getCertitype());//证件类型
+        status.setIdCard(loanStatus.getCertinum());//证件号码
+        status.setLoanAcc(loanStatus.getLoanaccnum());//贷款账号
+        status.setLoanAmount(this.getDouble(loanStatus.getLoanamt()));// 贷款金额
+        status.setLoanMonths(this.getInteger(loanStatus.getLoanterm()));//贷款年限(年)
+        status.setLoanType(loanStatus.getCommloanflag());//贷款类型
+        status.setHouseType(loanStatus.getHousetype());//房屋类型
+        status.setBank(loanStatus.getAgentbankcode());//受理网点
+        status.setLoanStatus(loanStatus.getComstate());//业务办理状态
+        status.setParseTime(new Date());
+        return status;
     }
 
     /**
@@ -753,6 +955,63 @@ public class GjjServiceImpl implements GjjService {
         String loanDetailListStr = HttpClientSupport.post(url, cookie, params);
 
         return loanDetailListStr;
+    }
+
+    private String getLoanStatusList(String cookie, String dataPool, GjjUser gjjUser, Map<String, String> extParms) {
+        HttpClient httpClient = HttpClientSupport.getHttpClient();
+
+        HttpPost post = new HttpPost("http://njgjj.com/dynamictable?uuid=" + System.currentTimeMillis());
+
+        List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
+        params.add(new BasicNameValuePair("_DATAPOOL_", dataPool));
+        params.add(new BasicNameValuePair("_APPLY", "0"));
+        params.add(new BasicNameValuePair("_CHANNEL", "1"));
+        params.add(new BasicNameValuePair("_PROCID", "60000004"));
+        params.add(new BasicNameValuePair("accname", gjjUser.getName()));
+        params.add(new BasicNameValuePair("accnum", gjjUser.getAccId()));
+        params.add(new BasicNameValuePair("begappdate", ""));
+        params.add(new BasicNameValuePair("begappfinishdate", ""));
+        params.add(new BasicNameValuePair("begguarcontrdate", ""));
+        params.add(new BasicNameValuePair("begguarcreadate", ""));
+        params.add(new BasicNameValuePair("begguarcreadate", ""));
+        params.add(new BasicNameValuePair("comstate", ""));
+        params.add(new BasicNameValuePair("endappdate", ""));
+        params.add(new BasicNameValuePair("endappdate", ""));
+        params.add(new BasicNameValuePair("endappdate", ""));
+        params.add(new BasicNameValuePair("certinum", gjjUser.getAccId()));
+        params.add(new BasicNameValuePair("certitype", "1"));
+        params.add(new BasicNameValuePair("begdate", "2000-01-01"));
+        params.add(new BasicNameValuePair("dynamicTable_configSqlCheck", "0"));
+        params.add(new BasicNameValuePair("dynamicTable_currentPage", "0"));
+        params.add(new BasicNameValuePair("dynamicTable_id", "datalist"));
+        params.add(new BasicNameValuePair("dynamicTable_nextPage", "1"));
+        params.add(new BasicNameValuePair("dynamicTable_page", "/ydpx/60000004/600004_01.ydpx"));
+        params.add(new BasicNameValuePair("dynamicTable_pageSize", "1000"));
+        params.add(new BasicNameValuePair("dynamicTable_paging", "true"));
+        params.add(new BasicNameValuePair("errorFilter", "1=1"));
+
+        try {
+            post.setEntity(new UrlEncodedFormEntity(params));
+        } catch (UnsupportedEncodingException e) {
+            log.error("", e);
+        }
+
+        post.addHeader("Cookie", cookie);
+
+        // 创建响应处理器处理服务器响应内容
+        ResponseHandler<String> responseHandler = new NJReserveResponseHandler();
+        // 执行请求并获取结果
+        String responseBody = null;
+        try {
+            responseBody = httpClient.execute(post, responseHandler);
+        } catch (ClientProtocolException e) {
+            log.error("", e);
+        } catch (IOException e) {
+            log.error("", e);
+        }
+        log.info("贷款审批状态json：{}", responseBody);
+
+        return responseBody;
     }
 
     /**
