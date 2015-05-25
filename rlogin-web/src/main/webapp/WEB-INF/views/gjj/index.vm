@@ -30,8 +30,5 @@
         	#end
         </span>
    </li> 
-</ul> 
-<nav class="bar bar-tab"> 
-   <a class="tab-item" href="$!content/gjj/recent"> <span class="tab-label">最近一年明细</span> </a> 
-   <a class="tab-item" href="$!content/gjj/loan"> <span class="tab-label">贷款个数（n）</span> </a> 
-</nav> 
+</ul>
+#parse("/gjj/footer.vm")

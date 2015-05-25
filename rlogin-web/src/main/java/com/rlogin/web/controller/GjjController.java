@@ -12,6 +12,7 @@ import com.rlogin.dao.mapper.gjj.GjjLoanMapper;
 import com.rlogin.dao.mapper.gjj.GjjLoanStatusMapper;
 import com.rlogin.domain.gjj.GjjLoan;
 import com.rlogin.domain.gjj.GjjLoanExample;
+import com.rlogin.domain.gjj.GjjLoanStatusExample;
 import org.apache.http.HttpRequest;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
@@ -203,6 +204,8 @@ public class GjjController {
         mv.addObject("gjjUser", gjjService.getGjjUser(loginId));
         mv.addObject("gjjDetail", gjjService.getGjjAccDetail(loginId));
         mv.addObject("gjjAccStatus", GjjAccStatus.values());
+
+        prepareMV(mv, loginId);
         return mv;
     }
 
@@ -214,7 +217,9 @@ public class GjjController {
     public ModelAndView recent(HttpServletRequest request) {
         ModelAndView mv = new ModelAndView();
         String loginId = request.getAttribute(Constant.USER_COOKIE_KEY).toString();
+
         mv.addObject("gjjDetails", gjjService.getRecentGjjDetails(loginId));
+        prepareMV(mv, loginId);
         return mv;
     }
 
@@ -239,7 +244,14 @@ public class GjjController {
             mv.addObject("loan", gjjLoans.size() > 0 ? gjjLoans.get(0) : null);
         }
 
+        prepareMV(mv, loginId);
         return mv;
+    }
+
+    private void prepareMV(ModelAndView mv, String loginId) {
+        GjjLoanExample example = new GjjLoanExample();
+        example.createCriteria().andUserAccIdEqualTo(loginId);
+        mv.addObject("loanNum", gjjLoanMapper.countByExample(example));
     }
 
 }

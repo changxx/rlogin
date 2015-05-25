@@ -35,8 +35,8 @@
         <span class="right">$!loan.mRate</span>
     </li>
     <li class="table-view-cell">
-        <span class="left">剩余总额</span>
-        <span class="right">$!gjjUser.accId</span>
+        <span class="left">本金余额</span>
+        <span class="right">$!loan.accId</span>
     </li>
     <li class="table-view-cell">
         <span class="left">剩余本金</span>
@@ -63,7 +63,4 @@
         <span class="right">$!loan.overM</span>
     </li>
 </ul>
-<nav class="bar bar-tab">
-   <a class="tab-item" href="$!content/gjj/recent"> <span class="tab-label">最近一年明细</span> </a>
-   <a class="tab-item active" href="$!content/gjj/loan"> <span class="tab-label">贷款个数（n）</span> </a>
-</nav> 
+#parse("/gjj/footer.vm")

@@ -16,8 +16,5 @@
         <span class="gjj-detail-cell w-25 left pd-2 text-r">$!detail.balance</span>
    </li> 
    #end
-</ul> 
-<nav class="bar bar-tab"> 
-   <a class="tab-item active" href="$!content/gjj/recent"> <span class="tab-label">最近一年明细</span> </a> 
-   <a class="tab-item" href="$!content/gjj/loan"> <span class="tab-label">贷款个数（n）</span> </a> 
-</nav> 
+</ul>
+#parse("/gjj/footer.vm")

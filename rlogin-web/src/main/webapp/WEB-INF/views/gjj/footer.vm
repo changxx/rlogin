@@ -1,0 +1,12 @@
+<nav class="bar bar-tab">
+    <a class="tab-item" href="$!content/gjj/recent"> <span class="tab-label">最近一年明细</span> </a>
+    <a class="tab-item active" href="$!content/gjj/loan">
+       <span class="tab-label">贷款个数（
+           #if($loanNum)
+               $!loanNum
+           #else
+               0
+           #end）
+       </span>
+    </a>
+</nav>
