@@ -49,5 +49,15 @@ public interface GjjService {
      */
     public List<GjjDetail> getRecentGjjDetails(String certinum);
 
-    public BlockingQueue<GjjAsynDomain> getGjjAsynDomainQuery();
+
+    /**
+     * 贷款试算
+     *
+     * @param cookie
+     * @param loginId
+     * @param certitype
+     * @param certinum
+     */
+    public String cal(String cookie, String loginId, Integer certitype, String certinum, Integer validflag,
+                      Integer techpost, Integer ishas);
 }

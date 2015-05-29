@@ -24,18 +24,9 @@ public class ImageResponseHandler extends BasicResponseHandler {
         this.servletResponse = servletResponse;
     }
 
-    public static void main(String[] args) throws IOException {
-        File file = new File("D://ss.txt");
-        file.createNewFile();
-    }
-
     @Override
     public String handleResponse(HttpResponse response) throws HttpResponseException, IOException {
         Header[] headers = response.getHeaders("Set-Cookie");
-
-        for (Header header : headers) {
-            System.out.println("服务器返回：" + header.getName() + ": " + header.getValue());
-        }
 
         if (servletResponse != null) {
             for (Header header : headers) {
@@ -46,15 +37,6 @@ public class ImageResponseHandler extends BasicResponseHandler {
 
         OutputStream os = servletResponse.getOutputStream();
         response.getEntity().writeTo(os);
-
-        /*
-         * // 写文件 File img = new File("D://ss.png"); if (img.exists()) {
-         * img.delete(); } img.createNewFile();
-         * 
-         * FileOutputStream output = new FileOutputStream(img);
-         * 
-         * response.getEntity().writeTo(output);
-         */
 
         return null;
     }

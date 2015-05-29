@@ -2,6 +2,7 @@ package com.rlogin.domain.gjj;
 
 /**
  * 数据总线
+ *
  * @author changxx
  */
 public class PoolSelect {
@@ -26,16 +27,19 @@ public class PoolSelect {
     private String _ISCROP;            // 0
     private String _PORCNAME;          // 个人明细信息查询
     private String _WITHKEY;           // 0
+    private String sex;//1
+
+    private String accstate;
 
     public PoolSelect() {
         super();
     }
 
     public PoolSelect(String $page, String _ACCNUM, String _RW, String _PAGEID, String _IS,
-            String _UNITACCNAME, String _LOGIP, String _ACCNAME, String isSamePer, String _PROCID,
-            String _SENDOPERID, String _DEPUTYIDCARDNUM, String _SENDTIME, String _BRANCHKIND,
-            String _SENDDATE, String cURRENT_SYSTEM_DATE, String _TYPE, String _ISCROP, String _PORCNAME,
-            String _WITHKEY) {
+                      String _UNITACCNAME, String _LOGIP, String _ACCNAME, String isSamePer, String _PROCID,
+                      String _SENDOPERID, String _DEPUTYIDCARDNUM, String _SENDTIME, String _BRANCHKIND,
+                      String _SENDDATE, String cURRENT_SYSTEM_DATE, String _TYPE, String _ISCROP, String _PORCNAME,
+                      String _WITHKEY) {
         super();
         this.$page = $page;
         this._ACCNUM = _ACCNUM;
@@ -57,6 +61,22 @@ public class PoolSelect {
         this._ISCROP = _ISCROP;
         this._PORCNAME = _PORCNAME;
         this._WITHKEY = _WITHKEY;
+    }
+
+    public String getAccstate() {
+        return accstate;
+    }
+
+    public void setAccstate(String accstate) {
+        this.accstate = accstate;
+    }
+
+    public String getSex() {
+        return sex;
+    }
+
+    public void setSex(String sex) {
+        this.sex = sex;
     }
 
     public String get$page() {

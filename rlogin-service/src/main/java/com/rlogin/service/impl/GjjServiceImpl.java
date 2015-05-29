@@ -11,7 +11,6 @@ import java.util.*;
 import java.util.concurrent.*;
 
 import com.rlogin.dao.mapper.gjj.*;
-import com.rlogin.domain.base.Query;
 import com.rlogin.domain.gjj.*;
 import com.rlogin.domain.gjj.result.loan.LoanStatus;
 import com.rlogin.domain.gjj.result.loan.LoanStatusResult;
@@ -21,6 +20,9 @@ import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.BasicResponseHandler;
+import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.joda.time.DateTime;
 import org.jsoup.Jsoup;
@@ -666,9 +668,6 @@ public class GjjServiceImpl implements GjjService {
         return gjjUser;
     }
 
-    /**
-     * 纪录公积金详情
-     */
     private String getTabelDataPool(String cookie, GjjUser gjjUser, String procid,
                                     Map<String, String> extParms) {
 
@@ -735,7 +734,7 @@ public class GjjServiceImpl implements GjjService {
 
         post.addHeader("Cookie", cookie);
 
-        post.setEntity(new UrlEncodedFormEntity(this.getDetailCommandSummerParams(poolSelect, extParms)));
+        post.setEntity(new UrlEncodedFormEntity(this.getCommandSummerParams(poolSelect, extParms)));
         // 创建响应处理器处理服务器响应内容
         ResponseHandler<String> responseHandler = new NJReserveResponseHandler();
         // 执行请求并获取结果
@@ -752,8 +751,8 @@ public class GjjServiceImpl implements GjjService {
      * @param extParms
      * @return
      */
-    private List<BasicNameValuePair> getDetailCommandSummerParams(PoolSelect poolSelect,
-                                                                  Map<String, String> extParms) {
+    private List<BasicNameValuePair> getCommandSummerParams(PoolSelect poolSelect,
+                                                            Map<String, String> extParms) {
         List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
         for (Field field : poolSelect.getClass().getDeclaredFields()) {
             PropertyDescriptor pd = null;
@@ -873,6 +872,110 @@ public class GjjServiceImpl implements GjjService {
         repayDetail.setTypeCode(detail.getSummarycode());// 业务摘要码
         repayDetail.setUserAccId(detail.getCertinum());// 用户登录号
         return repayDetail;
+    }
+
+    /**
+     * 贷款试算使用的用户信息
+     *
+     * @param cookie
+     * @param loginId
+     * @param certitype
+     * @param certinum
+     */
+    public String cal(String cookie, String loginId, Integer certitype, String certinum, Integer validflag,
+                      Integer techpost, Integer ishas) {
+        GjjUser gjjUser = this.getGjjUser(loginId);
+        if (gjjUser == null) {
+            return null;
+        }
+        Map<String, String> ext = new HashMap<String, String>();
+        ext.put("age", "28");
+        ext.put("birthday", "1987-06-06");
+        ext.put("flag", "0");
+        ext.put("indiacctype", "1");
+        String initResponseStr = this.getDataPool(cookie, "60000008", gjjUser, ext);
+
+        PoolSelect poolSelect = this.getPoolSelect(initResponseStr);
+
+        List<BasicNameValuePair> params = getCommandSummerParams(poolSelect, ext);
+
+        String url = "http://njgjj.com/command.summer?uuid=" + System.currentTimeMillis();
+
+        String personInfo = HttpClientSupport.post(url, cookie, params);
+        log.info("贷款试算信息：{}", personInfo);
+
+        // 数据池
+        String dataPool = this.getDataPool(initResponseStr);
+
+        GjjResult personInfoResult = JSONUtils.jsonToObject(personInfo, GjjResult.class);
+        log.info("person json: {}", personInfoResult.getData());
+
+        List<BasicNameValuePair> basicParams = new ArrayList<BasicNameValuePair>();
+        basicParams.add(new BasicNameValuePair("DATAlISTGHOST", "rO0ABXNyABNqYXZhLnV0aWwuQXJyYXlMaXN0eIHSHZnHYZ0DAAFJAARzaXpleHAAAAAAdwQAAAAKeA =="));
+        basicParams.add(new BasicNameValuePair("_APPLY", "0"));
+        basicParams.add(new BasicNameValuePair("_CHANNEL", "1"));
+        basicParams.add(new BasicNameValuePair("certitype", certitype.toString()));
+        basicParams.add(new BasicNameValuePair("certinum", certinum));
+        basicParams.add(new BasicNameValuePair("validflag", validflag.toString()));
+        basicParams.add(new BasicNameValuePair("techpost", techpost.toString()));
+        basicParams.add(new BasicNameValuePair("ishas", String.valueOf(ishas)));
+
+        Iterator<Map.Entry<String, String>> it = personInfoResult.getData().entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, String> entry = it.next();
+            basicParams.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
+        }
+
+        List<BasicNameValuePair> submitparams = new ArrayList<BasicNameValuePair>();
+        submitparams.addAll(basicParams);
+        submitparams.add(new BasicNameValuePair("_DATAPOOL_", dataPool));
+
+        String submitUrl = "http://njgjj.com/submit.summer?uuid=" + System.currentTimeMillis();
+        String submitResponseStr = HttpClientSupport.post(submitUrl, cookie, submitparams);
+        log.info("submitResponseStr: {}", submitResponseStr);
+
+        GjjResult submitResult = JSONUtils.jsonToObject(submitResponseStr, GjjResult.class);
+        if (submitResult == null || submitResult.getData() == null) {
+            return null;
+        }
+        String taskUrl = "http://njgjj.com" + submitResult.getData().get("url");
+        String taskResponseStr = HttpClientSupport.post(taskUrl, cookie, null);
+        String taskDataPool = this.getDataPool(taskResponseStr);
+
+        String taskSubmitUrl = "http://njgjj.com/submit.summer?uuid=" + System.currentTimeMillis();
+
+        String p = "certinum=32011319740704486X&accname=高原&birthday=1974-07-04&age=41&custid=082496917&accnum=3201000088775143&unitaccnum=20100967283&unitaccname=南京玉桥商业广场管理有限公司&opnaccdate=1993-09-10&begpayym=200306&lpaym=&basenum=1,800.00&monpaysum=540.00&unitprop=15&indiprop=15&totalprop=30&bal=9,442.07&lastdrawdate=&cardaccnum=320100008877514300&lmcardno=6217001370009103995&islocaltime=0&loantime=1&loanhouseflag=0&loanhousenum=&firsthousearea=&housecount=&perhouserarea=&amount1=800,000.00&buyhousearea=89&housetype=01&matecertinum=&matename=&birthday1=&age1=&custid1=&accnum1=&unitaccnum1=&unitaccname1=&opnaccdate1=&begpayym1=&lpaym1=&basenum1=&monpaysum1=&unitprop1=&indiprop1=&totalprop1=&bal1=&lastdrawdate1=&cardaccnum1=&lmcardno1=×=0&flag=0&_APPLY=0&_CHANNEL=1&_PROCID=60000008&DATAlISTGHOST=rO0ABXNyABNqYXZhLnV0aWwuQXJyYXlMaXN0eIHSHZnHYZ0DAAFJAARzaXpleHAAAAAAdwQAAAAKeA==&_DATAPOOL_=" + taskDataPool;
+
+        StringEntity stringEntity = null;
+        try {
+            stringEntity = new StringEntity(p);
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        HttpClient httpClient = new DefaultHttpClient();
+
+        HttpPost post = new HttpPost(taskSubmitUrl);
+        post.setEntity(stringEntity);
+        post.addHeader("Cookie", cookie);
+
+        String taskSubmitResponseStr = null;
+        try {
+            taskSubmitResponseStr = httpClient.execute(post, new BasicResponseHandler());
+            log.info("taskSubmitResponseStr: {}", taskSubmitResponseStr);
+        } catch (IOException e) {
+        }
+
+//        GjjResult taskSubmitResult = JSONUtils.jsonToObject(taskSubmitResponseStr, GjjResult.class);
+//        if (taskSubmitResult == null || taskSubmitResult.getData() == null) {
+//            return null;
+//        }
+//        String taskSubmitResultUrl = "http://njgjj.com" + taskSubmitResult.getData().get("url");
+//        String html = HttpClientSupport.post(taskSubmitResultUrl, cookie, null);
+//
+//        log.info("html: {}" + html);
+
+        return personInfo;
     }
 
     private String getDetailList(String cookie, String dataPool, GjjUser gjjUser, Map<String, String> extParms) {

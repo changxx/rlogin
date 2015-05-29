@@ -1,0 +1,99 @@
+#set($title = "贷款试算")
+<style>
+</style>
+<form method="get" class="input-group" action="$!content/gjj/cal">
+    <div class="input-row">
+        <label>证件类型：</label>
+        <select required="required" id="certitype" name="certitype">
+            <option value="">请选择...</option>
+            <option value="1">身份证</option>
+            <option value="2">军官证</option>
+            <option value="3">护照</option>
+            <option value="4">港澳通行证</option>
+            <option value="5">公务员</option>
+            <option value="9">其他</option>
+        </select>
+    </div>
+    <div class="input-row">
+        <label>证件号码：</label>
+        <input type="text" name="certinum"  placeholder="证件号码" value="$!loanAcc">
+    </div>
+    <div class="input-row">
+        <label>任职是否延长：</label>
+        <select required="required" id="validflag" name="validflag">
+            <option value="">请选择...</option>
+            <option value="0">否</option>
+            <option value="1">是</option>
+        </select>
+    </div>
+    <div class="input-row">
+        <label>职称：</label>
+        <select required="required" id="techpost" name="techpost">
+            <option value="">请选择...</option>
+            <option value="1">科级</option>
+            <option value="2">处级</option>
+            <option value="3">局级</option>
+            <option value="9">其他</option>
+            <option value="0">科员</option>
+            <option value="4">局级以上</option>
+            <option value="5">职员</option>
+            <option value="6">部门经理</option>
+            <option value="7">经理</option>
+            <option value="8">经理以上</option>
+        </select>
+    </div>
+    <div class="input-row">
+        <label>是否配偶：</label>
+        <select required="required" id="ishas" name="ishas">
+            <option value="">请选择...</option>
+            <option value="0">否</option>
+            <option value="1">是</option>
+        </select>
+    </div>
+    <div class="input-row">
+        <label>名下是否有房：</label>
+        <select required="required" id="loanhouseflag" name="loanhouseflag">
+            <option value="">请选择...</option>
+            <option value="0">否</option>
+            <option value="1">是</option>
+        </select>
+    </div>
+    <div class="input-row">
+        <label>房屋总价：</label>
+        <input type="text" name="amount1"  placeholder="房屋总价" value="$!amount1">
+    </div>
+    <div class="input-row">
+        <label>购房面积：</label>
+        <input type="text" name="buyhousearea"  placeholder="购房面积" value="$!buyhousearea">
+    </div>
+    <div class="input-row">
+        <label>房屋类型：</label>
+        <select required="required" id="housetype" name="housetype">
+            <option value="">请选择...</option>
+            <option value="01">商品房</option>
+            <option value="02">经济适用房</option>
+            <option value="03">自管产</option>
+            <option value="04">二手房</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-positive btn-block">提交</button>
+</form>
+<ul class="table-view gjj">
+    <li class="table-view-cell">
+        <span class="left">贷款期限(年)：</span>
+        <span class="right">30</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">贷款金额(元)：</span>
+        <span class="right">300000</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">利率是否浮动：</span>
+        <span class="right">否</span>
+    </li>
+    <li class="table-view-cell">
+        <span class="left">执行利率(%)：</span>
+        <span class="right">3.75</span>
+    </li>
+</ul>
+#parse("/gjj/footer.vm")

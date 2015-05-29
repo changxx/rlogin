@@ -13,3 +13,41 @@ form {
 .bar-nav~.content {
 	padding-bottom: 35px;
 }
+
+form .input-row{
+	height: auto;
+}
+
+form .input-row select{
+	width: 60%;
+	margin-bottom: 0px;
+	border: 0px;
+	background: none;
+	box-shadow: none;
+	padding: 0px;
+	vertical-align: middle;
+	height: 35px;
+}
+
+form .input-row .toggle .toggle-handle{
+	height: 22px;
+	width: 22px;
+}
+
+form .input-row .toggle{
+	left: 40%;
+	height: 25px;
+	margin-top: 4px;
+}
+
+form .input-row .toggle:before {
+	top: 0px;
+}
+
+form .input-row .toggle:before{
+	content: "否";
+}
+
+form .input-row .toggle.active::before{
+	content: "是";
+}

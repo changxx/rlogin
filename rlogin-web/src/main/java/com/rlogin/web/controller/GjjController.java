@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.rlogin.dao.mapper.gjj.GjjLoanMapper;
 import com.rlogin.dao.mapper.gjj.GjjLoanStatusMapper;
+import com.rlogin.domain.Vericode;
 import com.rlogin.domain.gjj.GjjLoan;
 import com.rlogin.domain.gjj.GjjLoanExample;
 import com.rlogin.domain.gjj.GjjLoanStatusExample;
@@ -73,11 +74,13 @@ public class GjjController {
      * 验证码
      */
     @RequestMapping("/vericode")
-    public void vericode(HttpServletRequest request, HttpServletResponse response)
+    public void vericode(HttpServletRequest request, HttpServletResponse response, @RequestParam(defaultValue = "1") int code)
             throws ClientProtocolException, IOException {
         DefaultHttpClient httpClient = HttpClientSupport.getHttpClient();
 
-        HttpPost post = new HttpPost("http://www.njgjj.com/vericode.jsp");
+        Vericode vericode = Vericode.getByCode(code);
+
+        HttpPost post = new HttpPost(vericode.getUrl() + "?" + System.currentTimeMillis());
 
         post.addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
         post.addHeader("Accept-Encoding", "gzip, deflate, sdch");
@@ -92,7 +95,6 @@ public class GjjController {
         // post.addHeader("Cookie", request.getHeader("Cookie"));
 
         httpClient.execute(post, new ImageResponseHandler(response));
-
     }
 
     /**
@@ -244,6 +246,35 @@ public class GjjController {
             mv.addObject("loan", gjjLoans.size() > 0 ? gjjLoans.get(0) : null);
         }
 
+        prepareMV(mv, loginId);
+        return mv;
+    }
+
+    /**
+     * 贷款试算
+     *
+     * @param request
+     * @param certinum
+     * @return
+     */
+    @RequestMapping("/cal")
+    public ModelAndView cal(HttpServletRequest request, @RequestParam(required = false) Integer certitype,
+                            @RequestParam(required = false) String certinum, @RequestParam(required = false) Integer validflag,
+                            @RequestParam(required = false) Integer techpost, @RequestParam(required = false) Integer ishas) {
+        ModelAndView mv = new ModelAndView();
+        String loginId = request.getAttribute(Constant.USER_COOKIE_KEY).toString();
+        mv.addObject("loginId", loginId);
+
+        String cookie = request.getHeader("Cookie");
+        if (certitype != null && certinum != null) {
+            String personInfo = gjjService.cal(cookie, loginId, certitype, certinum, validflag, techpost, ishas);
+        }
+
+        mv.addObject("certitype", certitype);
+        mv.addObject("certinum", certinum);
+        mv.addObject("validflag", validflag);
+        mv.addObject("techpost", techpost);
+        mv.addObject("ishas", ishas);
         prepareMV(mv, loginId);
         return mv;
     }
