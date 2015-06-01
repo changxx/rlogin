@@ -459,6 +459,14 @@
 				<artifactId>maven-resources-plugin</artifactId>
 				<version>${maven_resources_plugin_version}</version>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-war-plugin</artifactId>
+				<version>2.1-beta-1</version>
+				<configuration>
+					<archiveClasses>false</archiveClasses>
+				</configuration>
+			</plugin>
 			<!-- Source attach plugin -->
 			<plugin>
 				<artifactId>maven-source-plugin</artifactId>
